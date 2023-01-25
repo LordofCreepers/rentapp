@@ -2,8 +2,8 @@
 	<div :class="[ 'tf-table-filter', enabled ? 'active' : 'inactive' ]">
 		<Checkbox 
 			v-show="!force_enable"
-			:default_value="enable"
-			:class="[ 'tf-checkbox-enable', enabled ? 'active' : 'inactive' ]" 
+			:default_value="enabled"
+			:class="[ 'tf-checkbox-enable', enabled ? 'active' : 'inactive' ]"
 			@change="value => toggle( value )" 
 		></Checkbox>
 		<h6 class="tf-id">{{ filter_name }} {{ enabled ? "" : "(Неактивен)" }}</h6>
@@ -61,10 +61,13 @@ import Textbox from './Textbox.vue';
     },
     data() {
         return {
-			enabled_value: true,
+			enabled_value: false,
 			value: null
         };
     },
+	mounted() {
+		console.log( this.default_value )
+	},
 	computed: {
 		enabled() {
 			return ( this.enabled_value || this.force_enable )
@@ -183,11 +186,11 @@ import Textbox from './Textbox.vue';
 		text-align: center;
 	}
 
-	.tf-checkbox-check {
+	.checkbox-check-mark {
 		color: #3f3;
 	}
 
-	.tf-checkbox-cross {
+	.checkbox-cross-mark {
 		color: red
 	}
 

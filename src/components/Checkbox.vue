@@ -1,7 +1,7 @@
 <template>
 	<button @click="toggle()">
-		<font-awesome-icon v-if="value" class="custom-checkbox-check-mark" icon="fa-solid fa-check"></font-awesome-icon>
-		<font-awesome-icon v-else class="custom-checkbox-cross-mark" icon="fa-solid fa-xmark"></font-awesome-icon>
+		<font-awesome-icon v-if="value" class="checkbox-check-mark" icon="fa-solid fa-check"></font-awesome-icon>
+		<font-awesome-icon v-else class="checkbox-cross-mark" icon="fa-solid fa-xmark"></font-awesome-icon>
 	</button>
 </template>
 
@@ -17,11 +17,8 @@ export default {
 	},
 	data() {
 		return {
-			value: false,
+			value: this.default_value,
 		}
-	},
-	mounted() {
-		this.value = this.default_value
 	},
 	methods: {
 		toggle() {
