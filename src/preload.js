@@ -10,7 +10,7 @@ import { contextBridge, ipcRenderer } from "electron";
 } */
 
 contextBridge.exposeInMainWorld( "database", {
-	init: () => ipcRenderer.send( "init-db", {} ),
-	read_db: async () => await ipcRenderer.invoke( "read-db", {} ),
+	// init: () => ipcRenderer.send( "init-db", {} ),
+	// read_db: async () => await ipcRenderer.invoke( "read-db", {} ),
 	open_win: () => ipcRenderer.send( "open_win", {} )
 })

@@ -1,0 +1,30 @@
+{
+	"pretty_name": "Пользователи",
+	"fields": [
+		{
+			"name": "name",
+			"pretty_name": "Имя пользователя",
+			"type": "text",
+			"required": true,
+			"unique": true
+		},
+		{
+			"name": "join_date",
+			"pretty_name": "Дата создания учётной записи",
+			"type": "integer"
+		}
+	],
+	"primary_key": [ "name" ],
+	"prompt": {
+		"pretty_name": "Пользователи",
+		"fields": {
+			"name": {
+				"pretty_name": "Имя пользователя"
+			},
+			"join_date": {
+				"pretty_name": "Дата создания учётной записи",
+				"type": "date"
+			}
+		}
+	}
+}

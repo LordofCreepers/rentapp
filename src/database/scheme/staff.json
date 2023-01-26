@@ -1,0 +1,40 @@
+{
+	"fields": [
+		{
+			"name": "staff_name",
+			"type": "text",
+			"reference": {
+				"table": "users",
+				"column": "name"
+			},
+			"required": true,
+			"unique": true
+		},
+		{
+			"name": "role",
+			"type": "text",
+			"required": true
+		},
+		{
+			"name": "experience_years",
+			"type": "float",
+			"min": 0,
+			"max": 47
+		}
+	],
+	"primary_key": [ "staff_name" ],
+	"prompt": {
+		"pretty_name": "Персонал",
+		"fields": {
+			"staff_name": {
+				"pretty_name": "Учётная запись работника"
+			},
+			"role": {
+				"pretty_name": "Должность"
+			},
+			"experience_years": {
+				"pretty_name": "Стаж, в годах"
+			}
+		}
+	}
+}
