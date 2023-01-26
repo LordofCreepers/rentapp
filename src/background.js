@@ -14,14 +14,124 @@ const db_path = path.join(
 	isDevelopment ? "" : "../../",
 	"../src/database"
 )
-const db_path_file = path.join( db_path, "/database.sqlite" )
-const db_path_migrations = path.join( db_path, "/migrations/" )
+const db_path_file = path.join( db_path, "/database.db" )
+const db_path_migrations = path.join( db_path, "/scheme/" )
+
+sqlite3.Database.prototype.run_async = async function( query, ...params ) {
+	let db = this
+	return new Promise( ( resolve, reject ) => {
+		db.run( query, ...params, ( err ) => {
+			if ( err ) {
+				return reject( err )
+			}
+			return resolve()
+		})
+	})
+}
+
+sqlite3.Database.prototype.get_async = async function( query, ...params ) {
+	let db = this
+	return new Promise( ( resolve, reject ) => {
+		db.get( query, ...params, ( err, row ) => {
+			if ( err ) {
+				return reject( err )
+			}
+			return resolve( row )
+		})
+	})
+}
+
+sqlite3.Database.prototype.all_async = async function( query, ...params ) {
+	let db = this
+	return new Promise( ( resolve, reject ) => {
+		db.all( query, ...params, ( err, row ) => {
+			if ( err ) {
+				return reject( err )
+			}
+			return resolve( row )
+		})
+	})
+}
+
+sqlite3.Database.prototype.each_async = async function( callback, query, ...params ) {
+	let db = this
+	return new Promise( ( resolve, reject ) => {
+		db.each( query, ...params, ( err, row ) => {
+			if ( err ) {
+				return reject( err )
+			}
+			callback( row )
+		}, ( err, count ) => {
+			if ( err ) {
+				return reject( err )
+			}
+			return resolve( count )
+		})
+	})
+}
+
+function CompileUpMigrationString( table_name, config ) {
+	let result = `CREATE TABLE ${ table_name.toLowerCase() } (`
+	let foreigns = []
+	for ( const field of config.fields ) {
+		
+		result += ` ${ field.name.toLowerCase() } ${ field.type.toUpperCase() }`
+
+		if ( field.required != undefined && field.required === true )
+			result += ` NOT NULL`
+
+		if ( field.unique != undefined && field.unique === true )
+			result += ` UNIQUE`
+
+		if ( field.autoincrement != undefined && field.autoincrement === true )
+			result += ` AUTOINCREMENT`
+
+		if ( field.check != undefined )
+			result += ` CHECK( ${ field.check } )`
+		else if ( field.min != undefined || field.max ) {
+			let check = ` CHECK(`
+
+			if ( field.min != undefined )
+				check += ` ${ field.name } >= ${ field.min }`
+
+			if ( field.max != undefined )
+				check += ` AND ${ field.name } <= ${ field.max }`
+			
+			check += " )"
+			result += check
+		}
+			
+		result += ","
+		if ( field.reference != undefined )
+			foreigns.push( field )
+	}
+
+	if ( config.primary_key.length > 0 )
+		result += ` PRIMARY KEY( ${ config.primary_key.join( ", " ) } ),`
+
+	for ( const foreign of foreigns ) {
+result += ` FOREIGN KEY( ${ foreign.name.toLowerCase() } ) REFERENCES ${ foreign.reference.table.toLowerCase() }( ${ foreign.reference.column.toLowerCase() } ),`
+	}
+
+	result = result.trim()
+	if ( result.slice( -1 ) == "," )
+		result = result.slice( 0, -1 )
+	
+	result += " )"
+
+	return result
+}
+
+function CompileDownMigrationString( table_name, config ) {
+	return `DROP TABLE ${ table_name.toLowerCase() }`
+}
+
 async function InitializeDatabase() 
 {
 	try {
 		await fs.stat( db_path )
 	} catch( err ) {
-		if ( err.code == undefined || err.code != "ENOENT" )
+		if ( !isDevelopment || err.code == undefined || err.code != "ENOENT" )
 			throw err
 		await fs.mkdir( db_path )
 	}
@@ -29,7 +139,7 @@ async function InitializeDatabase()
 	try {
 		await fs.stat( db_path_file )
 	} catch( err ) {
-		if ( err.code == undefined || err.code != "ENOENT" )
+		if ( !isDevelopment || err.code == undefined || err.code != "ENOENT" )
 			throw err
 		await fs.writeFile( db_path_file, "" )
 	}
@@ -37,6 +147,9 @@ async function InitializeDatabase()
 	const db = new sqlite3.Database( db_path_file )
 	if ( db == undefined )
 		return Promise.reject( "Couldn't open the database file" )
+
+	if ( !isDevelopment )
+		return Promise.resolve()
 
 	db.run( "CREATE TABLE IF NOT EXISTS migrations (title TEXT PRIMARY KEY UNIQUE, up TEXT, down TEXT)" )
 
@@ -51,60 +164,43 @@ async function InitializeDatabase()
 	}
 	
 	const dirs = await fs.readdir( db_path_migrations, { withFileTypes: true } )
-	dirs.forEach( async dir => {
-		if ( !dir.isDirectory() ) return;
-	
-		db.get( "SELECT title FROM migrations WHERE title = ?", dir.name, async ( err, row ) => {
-			if ( err ) return
-			if ( row != undefined )
-				if ( row.up != "" && row.down != "" ) return;
-				
-			var migration_config = {
-				title: dir.name,
-				up: "",
-				down: ""
-			}
-			const db_path_cur_migration = path.join( db_path_migrations, dir.name )
-			const files = await fs.readdir( db_path_cur_migration, { withFileTypes: true } )
-			files.forEach( async file => {
-				if ( !file.isFile() ) return;
-				switch ( file.name.toLowerCase() ) {
-					case "up.sqlite":
-						if ( row != undefined || row.up != "" ) break
-						migration_config.up = await fs.readFile( path.join( db_path_cur_migration, file.name ), { encoding: "utf-8" } )
-						break;
-					case "down.sqlite":
-						if ( row != undefined || row.down != "" ) break
-						migration_config.down = await fs.readFile( path.join( db_path_cur_migration, file.name ), { encoding: "utf-8" } )
-						break;
-					default:
-						break;
+	await ( async () => {
+		let queries = []
+		for ( const dir of dirs ) {
+			queries.push( ( async () => {
+				if ( !dir.isFile() ) return;
+				if ( dir.name.slice( -5 ) != ".json" ) return;
+		
+				const json = JSON.parse( await fs.readFile( path.join( db_path_migrations, dir.name ), { encoding: "utf-8" } ) )
+		
+				const table_name = dir.name.slice( 0, -5 )
+				const up = CompileUpMigrationString( table_name, json )
+				const down = CompileDownMigrationString( table_name, json )
+		
+				const migration = await db.get_async( "SELECT * FROM migrations WHERE title = ?", table_name )
+				if ( migration == undefined )
+				{
+					await db.run_async( "INSERT INTO migrations ( title, up, down ) VALUES ( ?, ?, ? )", table_name, up, down )
+					await db.run_async( up )
+					return
 				}
-			})
-
-			db.run( "INSERT INTO migrations (title, up, down) VALUES (:title, :up, :down)", migration_config )
-			if ( migration_config.up == "" ) return;
-			db.run( migration_config.up )
-	
-		})
-	});
+		
+				if ( migration.down != down )
+					await db.run_async( "UPDATE migrations SET down = ? WHERE title = ?", down, table_name )
+		
+				if ( migration.up != up )
+				{
+					await db.run_async( down )
+					await db.run_async( "UPDATE migrations SET up = ? WHERE = ?", up, table_name )
+					await db.run_async( up )
+				}
+			})() )
+		}
+		return Promise.all( queries )
+	})()
 
 	db.close()
 	return Promise.resolve()
-}
-
-async function dbAll( database, query )
-{
-	return new Promise( ( resolve, reject ) => {
-		database.all( query, ( err, rows ) => {
-			if ( err )
-			{
-				reject( err )
-				return
-			}
-			resolve( rows )
-		})
-	})
 }
 
 async function DumpDatabase()
@@ -146,10 +242,12 @@ async function createMainWindow() {
     }
   })
 
+  InitializeDatabase()
+
   if (process.env.WEBPACK_DEV_SERVER_URL) {
     // Load the url of the dev server if in development mode
     await win.loadURL(process.env.WEBPACK_DEV_SERVER_URL)
-    if (!process.env.IS_TEST) win.webContents.openDevTools()
+    // if (!process.env.IS_TEST) win.webContents.openDevTools()
   } else {
     createProtocol('app')
     // Load the index.html when not in development

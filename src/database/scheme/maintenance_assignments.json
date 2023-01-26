@@ -1,0 +1,46 @@
+{
+	"fields": [
+		{
+			"name": "maintenee",
+			"type": "text",
+			"reference": {
+				"table": "staff",
+				"column": "staff_name"
+			},
+			"required": true,
+			"unique": true
+		},
+		{
+			"name": "vehicle",
+			"pretty_name": "Транспортное средство",
+			"type": "text",
+			"reference": {
+				"table": "vehicle",
+				"column": "name"
+			},
+			"required": true,
+			"unique": true
+		},
+		{
+			"name": "due",
+			"type": "integer",
+			"required": true
+		}
+	],
+	"primary_key": [],
+	"prompt": {
+		"pretty_name": "Ремонтные работы",
+		"fields": {
+			"maintenee": {
+				"pretty_name": "Ответственный"
+			},
+			"vehicle": {
+				"pretty_name": "Транспортное средство"
+			},
+			"due": {
+				"pretty_name": "Крайний срок",
+				"type": "date"
+			}
+		}
+	}
+}

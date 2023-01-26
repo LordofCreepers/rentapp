@@ -1,0 +1,39 @@
+{
+	"fields": [
+		{
+			"name": "license",
+			"type": "text",
+			"required": true,
+			"unique": true
+		},
+		{
+			"name": "mark",
+			"type": "text",
+			"reference": {
+				"table": "vehicle_marks",
+				"column": "mark"
+			},
+			"required": true
+		},
+		{
+			"name": "distance_travelled_kilometers",
+			"type": "float",
+			"min": 0
+		}
+	],
+	"primary_key": [ "license" ],
+	"prompt": {
+		"pretty_name": "Транспорт",
+		"fields": {
+			"license": {
+				"pretty_name": "Рег. знак"
+			},
+			"mark": {
+				"pretty_name": "Марка"
+			},
+			"distance_travelled_kilometers": {
+				"pretty_name": "Километраж"
+			}
+		}
+	}
+}

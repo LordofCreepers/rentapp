@@ -1,0 +1,47 @@
+{
+	"pretty_name": "Марки транспорта",
+	"fields": [
+		{
+			"name": "mark",
+			"type": "text",
+			"required": true,
+			"unique": true
+		},
+		{
+			"name": "fuel_capacity_lieters",
+			"type": "float",
+			"min": 0
+		},
+		{
+			"name": "engine_mark",
+			"type": "text",
+			"reference": {
+				"table": "engine_marks",
+				"column": "title"
+			}
+		},
+		{
+			"name": "image",
+			"type": "blob"
+		}
+	],
+	"primary_key": [ "mark" ],
+	"prompt": { 
+		"pretty_name": "Марки транспорта",
+		"fields": {
+			"mark": {
+				"pretty_name": "Название"
+			},
+			"fuel_capacity_lieters": {
+				"pretty_name": "Объём бензобака, в литрах"	
+			},
+			"engine_mark": {
+				"pretty_name": "Марка двигателя"
+			},
+			"image": {
+				"pretty_name": "Изображение",
+				"type": "image"
+			}
+		}
+	}
+}

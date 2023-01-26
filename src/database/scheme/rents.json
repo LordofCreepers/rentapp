@@ -1,0 +1,67 @@
+{
+	"fields": [
+		{
+			"name": "rentee",
+			"type": "text",
+			"reference": {
+				"table": "users",
+				"column": "name"
+			},
+			"required": true,
+			"unique": true
+		},
+		{
+			"name": "driver",
+			"type": "text",
+			"reference": {
+				"table": "staff",
+				"column": "staff_name"
+			},
+			"required": true,
+			"unique": true,
+			"check": "staff.role='Водитель'"
+		},
+		{
+			"name": "vehicle",
+			"type": "text",
+			"reference": {
+				"table": "vehicles",
+				"column": "license"
+			},
+			"required": true,
+			"unique": true
+		},
+		{
+			"name": "expire_due",
+			"type": "integer",
+			"required": true
+		},
+		{
+			"name": "expected_distance_kilometers",
+			"type": "float",
+			"min": 0
+		}
+	],
+	"primary_key": [],
+	"prompt": {
+		"pretty_name": "Прокат",
+		"fields": {
+			"rentee": {
+				"pretty_name": "Клиент"
+			},
+			"driver": {
+				"pretty_name": "Водитель"
+			},
+			"vehicle": {
+				"pretty_name": "Транспорт"
+			},
+			"expire_due": {
+				"pretty_name": "Истечение срока аренды",
+				"type": "date"
+			},
+			"expected_distance_kilometers": {
+				"pretty_name": "Ожидаемое расстояние поездки, в км."
+			}
+		}
+	}
+}

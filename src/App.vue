@@ -6,7 +6,7 @@
 	<TableTab 
 		v-for="n in 4" 
 		:key="n"
-		:title="'Какая-то таблица ' + n" tip="Таблица, над записями которой могут совершаться действия" 
+		:title="'Какая-то таблица ' + n" tip="Шаблон" 
 		:content_types='{ 
 			"Список": { 
 				type: "select", 
@@ -23,16 +23,20 @@
 			},
 			"Текст": {
 				type: "string"
-			} }' />
+			} }' 
+	/>
+	<Log></Log>
 </template>
 
 <script>
+import Log from './components/Log.vue';
 import TableTab from './components/TableTab.vue';
 
 export default {
   name: 'App',
   components: {
-	TableTab
+    TableTab,
+    Log
   }
 }
 </script>
