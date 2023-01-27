@@ -1,11 +1,7 @@
 <template>
 	<div class="tt-table-tab">
-		<button class="tt-button" @click="toggle()">
-			<font-awesome-icon class="tt-tab-icon" icon="fa-solid fa-caret-down" />
-			{{ title }}
-		</button>
-		<Transition name="unfold">
-			<div v-if="open" class="tc-table-content">
+		<UnfoldingContainer :title="title">
+			<div class="tc-table-content">
 				<h4 class="tc-tip">{{ tip }}</h4>
 				<div class="tom-table-operation-mode">
 					<lable class="tom-label">Операция над записью: </lable>
@@ -33,12 +29,13 @@
 				</div> -->
 				<button @click="open_window()" class="tt-button tc-execute">Запустить</button>
 			</div>
-		</Transition>
+		</UnfoldingContainer>
 	</div>
 </template>
 
 <script>
 import TableFilter from './TableFilter.vue';
+import UnfoldingContainer from './UnfoldingContainer.vue';
 
 
 export default {
@@ -49,7 +46,8 @@ export default {
         content_types: Object
     },
     components: {
-        TableFilter
+        TableFilter,
+		UnfoldingContainer
 	},
     data() {
         return {
@@ -131,6 +129,7 @@ export default {
 	.tc-table-content {
 		border: 1px solid black;
 		padding-left: 7.5%;
+		padding-right: 7.5%;
 		text-align: left;
 		border-radius: 8px;
 		transform-origin: top;
@@ -224,19 +223,5 @@ export default {
 
 	.tt-caret-right {
 		animation: rot90 250ms ease-out reverse backwards;
-	}
-
-	.unfold-enter-from, .unfold-leave-to {
-		transform: scaleY( 0 );
-	}
-
-	.unfold-enter-active, .unfold-leave-active {
-		transition-property: transform;
-		transition-duration: 100ms;
-		transition-timing-function: ease-out;
-	}
-
-	.unfold-enter-to, .unfold-leave-from {
-		transform: scaleY( 1 );
 	}
 </style>
