@@ -1,7 +1,7 @@
 <template>
 	<div :class="[ 'tf-table-filter', enabled ? 'active' : 'inactive' ]">
 		<Checkbox 
-			v-show="!force_enable"
+			v-show="!force_enable && !force_disable"
 			:default_value="enabled"
 			:class="[ 'tf-checkbox-enable', enabled ? 'active' : 'inactive' ]"
 			@change="value => toggle( value )" 
@@ -10,11 +10,11 @@
 		<div class="tf-value-container">
 			<Checkbox v-if="type === 'bool'" 
 				class="tf-value tf-checkbox"
-				@change="this.value = !!!this.value" >
-			</Checkbox>
+				@change="this.value = !!!this.value" 
+			></Checkbox>
 			<Textbox v-else-if="type === 'string'"
 				class="tf-value tf-textfield"
-				@change="value => changed( value )"
+				@change="value => this.value = value"
 			></Textbox>
 			<Numberbox v-else-if="type === 'number'" 
 				class="tf-value tf-textfield tf-number"
@@ -31,6 +31,10 @@
 				:options="filter_data.options"
 				@change="value => this.value = value" 
 			></Dropdown>
+			<Image v-else-if="type === 'image'"
+				class="tf-value tf-image"
+				@change="value => this.value = value"
+			></Image>
 		</div>
 	</div>
 </template>
@@ -39,6 +43,7 @@
 import Checkbox from './Checkbox.vue'
 import Date from './Date.vue';
 import Dropdown from './Dropdown.vue';
+import Image from './Image.vue';
 import Numberbox from './Numberbox.vue';
 import Textbox from './Textbox.vue';
 
@@ -54,6 +59,7 @@ import Textbox from './Textbox.vue';
 			required: true
 		},
 		force_enable: Boolean,
+		force_disable: Boolean,
         filter_data: {
 			type: Object,
 			default: () => { return {} }
@@ -65,12 +71,9 @@ import Textbox from './Textbox.vue';
 			value: null
         };
     },
-	mounted() {
-		console.log( this.default_value )
-	},
 	computed: {
 		enabled() {
-			return ( this.enabled_value || this.force_enable )
+			return ( this.enabled_value || this.force_enable ) && !this.force_disable
 		}
 	},
     methods: {
@@ -83,7 +86,7 @@ import Textbox from './Textbox.vue';
 		}
     },
 	emits: [ "change" ],
-    components: { Checkbox, Textbox, Numberbox, Date, Dropdown }
+    components: { Checkbox, Textbox, Numberbox, Date, Dropdown, Image }
 }
 </script>
 
@@ -187,11 +190,11 @@ import Textbox from './Textbox.vue';
 	}
 
 	.checkbox-check-mark {
-		color: #3f3;
+		color: #373;
 	}
 
 	.checkbox-cross-mark {
-		color: red
+		color: #400
 	}
 
 	.tf-checkbox:hover {

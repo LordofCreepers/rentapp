@@ -10,21 +10,35 @@
                 filter_name="Запрос"
                 type="string"
                 :filter_data="{}"
+				@change="value => this.string = value"
             >
             </TableFilter>
+			<button class="tt-button tc-execute">Запустить</button>
         </div>
-        <button class="tt-button tc-execute">Запустить</button>
     </UnfoldingContainer>
 </template>
 
 <script>
 import UnfoldingContainer from './UnfoldingContainer.vue';
+import TableFilter from './TableFilter.vue';
 
 export default {
     name: "Query",
     components: {
-        UnfoldingContainer
-    }
+        UnfoldingContainer,
+		TableFilter
+    },
+	data() {
+		return {
+			string: ""
+		}
+	},
+	methods: {
+		query_execute() {
+			this.$emit( "query", "Запрос", this.string )
+		}
+	},
+	emits: [ "query" ]
 }
 
 </script>
