@@ -7,19 +7,17 @@
 				"table": "staff",
 				"column": "staff_name"
 			},
-			"required": true,
-			"unique": true
+			"required": true
 		},
 		{
 			"name": "vehicle",
 			"pretty_name": "Транспортное средство",
 			"type": "text",
 			"reference": {
-				"table": "vehicle",
-				"column": "name"
+				"table": "vehicles",
+				"column": "license"
 			},
-			"required": true,
-			"unique": true
+			"required": true
 		},
 		{
 			"name": "due",

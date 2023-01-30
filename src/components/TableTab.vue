@@ -13,10 +13,11 @@
 					</select>
 				</div>
 				<TableFilter v-for="filter of filters" 
-					:key="filter.id" 
-					:filter_name="filter.id" 
-					:type="filter.payload.type" 
-					:filter_data="filter.payload.data" 
+					:key="filter.name"
+					:filter_name="filter.pretty_name"
+					:type="filter.field_type"
+					:filter_data="filter"
+					:force_enable="filter.required == 1"
 					@change="( filter, value ) => filter_changed( filter, value )"
 				></TableFilter>
 				<!-- <div class="tc-filters-controls">
@@ -27,7 +28,7 @@
 						<font-awesome-icon icon="fa-regular fa-trash-can" />
 					</button>
 				</div> -->
-				<button @click="open_window()" class="tt-button tc-execute">Запустить</button>
+				<button @click="query_execute()" class="tt-button tc-execute">Выполнить</button>
 			</div>
 		</UnfoldingContainer>
 	</div>
@@ -41,9 +42,15 @@ import UnfoldingContainer from './UnfoldingContainer.vue';
 export default {
     name: "TableTab",
     props: {
-        title: String,
+        title: {
+			type: String,
+			require: true
+		},
         tip: String,
-        content_types: Object
+        filters: {
+			type: Array,
+			require: true
+		}
     },
     components: {
         TableFilter,
@@ -55,28 +62,19 @@ export default {
 			filters_data: {}
         };
     },
-	computed: {
-		filters() {
-			let filters = []
-			for ( const key in this.content_types ) {
-				const element = this.content_types[ key ];
-				filters.push( { id: key, payload: element } )
-			}
-			console.log( filters )
-			return filters
-		}
-	},
     methods: {
         toggle() {
             this.open = !this.open;
+			console.log( this.filters_data )
         },
 		filter_changed( filter, value ) {
-			this,filters_data[ filter ] = value
+			this.filters_data[ filter ] = value
 		},
-		open_window() {
-			window.database.open_win()
+		query_execute() {
+			this.$emit( "query", this.title, this.filters_data )
 		}
-    }
+    },
+	emits: [ "query" ]
 }
 
 </script>

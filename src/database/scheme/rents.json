@@ -7,8 +7,7 @@
 				"table": "users",
 				"column": "name"
 			},
-			"required": true,
-			"unique": true
+			"required": true
 		},
 		{
 			"name": "driver",
@@ -18,7 +17,6 @@
 				"column": "staff_name"
 			},
 			"required": true,
-			"unique": true,
 			"check": "staff.role='Водитель'"
 		},
 		{
@@ -28,8 +26,7 @@
 				"table": "vehicles",
 				"column": "license"
 			},
-			"required": true,
-			"unique": true
+			"required": true
 		},
 		{
 			"name": "expire_due",

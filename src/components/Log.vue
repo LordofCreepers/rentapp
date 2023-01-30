@@ -46,6 +46,9 @@ export default {
 	methods: {
 		clear() {
 			this.messages = []
+		},
+		add( msg ) {
+			this.messages.push( msg )
 		}
 	}
 }

@@ -6,8 +6,10 @@ import installExtension, { VUEJS3_DEVTOOLS } from 'electron-devtools-installer'
 import fs from 'fs/promises'
 import sqlite3 from 'sqlite3';
 import path from 'path'
-sqlite3.verbose()
 const isDevelopment = process.env.NODE_ENV !== 'production'
+
+if ( isDevelopment )
+	sqlite3.verbose()
 
 const db_path = path.join(
 	isDevelopment ? __static : __dirname,
@@ -123,7 +125,23 @@ result += ` FOREIGN KEY( ${ foreign.name.toLowerCase() } ) REFERENCES ${ foreign
 }
 
 function CompileDownMigrationString( table_name, config ) {
-	return `DROP TABLE ${ table_name.toLowerCase() }`
+	return `DROP TABLE IF EXISTS ${ table_name.toLowerCase() }`
+}
+
+function SQLTypeToPromptType( field_data, prompt_data ) {
+	if ( prompt_data.type != undefined )
+		return prompt_data.type
+
+	if ( field_data.reference != undefined )
+		return "select"
+
+	if ( field_data.type == "integer" || field_data.type == "float" )
+		return "number"
+
+	if ( field_data.type == "text" )
+		return "string"
+
+	return field_data.type
 }
 
 async function InitializeDatabase() 
@@ -151,12 +169,55 @@ async function InitializeDatabase()
 	if ( !isDevelopment )
 		return Promise.resolve()
 
-	db.run( "CREATE TABLE IF NOT EXISTS migrations (title TEXT PRIMARY KEY UNIQUE, up TEXT, down TEXT)" )
+	/* db.on( "profile", ( query, time ) => {
+		console.log( "Executed '" + query + "' in " + time + " .ms" )
+	}) */
+
+	await db.run_async( "CREATE TABLE IF NOT EXISTS migrations (title TEXT PRIMARY KEY UNIQUE, up TEXT NOT NULL, down TEXT)" )
+	await db.run_async( "DROP TABLE IF EXISTS prompt_manifest" )
+	await db.run_async( "CREATE TABLE IF NOT EXISTS prompt_manifest (			\
+		table_name TEXT NOT NULL,												\
+		field_name TEXT NOT NULL,												\
+		pretty_name TEXT NOT NULL,												\
+		field_type TEXT NOT NULL,												\
+		required INTEGER NOT NULL,												\
+		is_unique INTEGER NOT NULL,												\
+		value_check TEXT,														\
+		FOREIGN KEY( table_name ) REFERENCES migrations( title )				\
+			ON DELETE CASCADE ON UPDATE CASCADE									\
+		PRIMARY KEY( table_name, field_name )									\
+	)" )
+	await db.run_async( "DROP TABLE IF EXISTS prompt_manifest_number" )
+	await db.run_async( "CREATE TABLE IF NOT EXISTS prompt_manifest_number (\
+		table_name TEXT NOT NULL,											\
+		field_name TEXT NOT NULL,											\
+		min FLOAT,															\
+		max FLOAT,															\
+		FOREIGN KEY( table_name ) REFERENCES migrations( title )			\
+			ON DELETE CASCADE ON UPDATE CASCADE								\
+	)" )
+	await db.run_async( "DROP TABLE IF EXISTS prompt_manifest_ref" )
+	await db.run_async( "CREATE TABLE IF NOT EXISTS prompt_manifest_ref (	\
+		table_name TEXT NOT NULL,											\
+		field_name TEXT NOT NULL,											\
+		reference_table_name TEXT NOT NULL,									\
+		reference_column_name TEXT NOT NULL,								\
+		FOREIGN KEY( reference_table_name ) REFERENCES migrations( title )	\
+			ON DELETE CASCADE ON UPDATE CASCADE,							\
+		FOREIGN KEY( table_name ) REFERENCES migrations( title )			\
+			ON DELETE CASCADE ON UPDATE CASCADE								\
+	)" )
+	await db.run_async( "DROP TABLE IF EXISTS prompt_manifest_tables" )
+	await db.run_async( "CREATE TABLE IF NOT EXISTS prompt_manifest_tables (\
+		table_name TEXT NOT NULL PRIMARY KEY,								\
+		pretty_name TEXT NOT NULL,											\
+		FOREIGN KEY( table_name ) REFERENCES migrations( title )			\
+			ON DELETE CASCADE ON UPDATE CASCADE								\
+	)" )
 
 	try {
 		await fs.stat( db_path_migrations )
 	} catch( err ) {
-		console.log( err.code )
 		if ( err.code == undefined || err.code != "ENOENT" )
 			throw err
 		db.close()
@@ -164,60 +225,178 @@ async function InitializeDatabase()
 	}
 	
 	const dirs = await fs.readdir( db_path_migrations, { withFileTypes: true } )
-	await ( async () => {
-		let queries = []
-		for ( const dir of dirs ) {
-			queries.push( ( async () => {
-				if ( !dir.isFile() ) return;
-				if ( dir.name.slice( -5 ) != ".json" ) return;
-		
-				const json = JSON.parse( await fs.readFile( path.join( db_path_migrations, dir.name ), { encoding: "utf-8" } ) )
-		
-				const table_name = dir.name.slice( 0, -5 )
-				const up = CompileUpMigrationString( table_name, json )
-				const down = CompileDownMigrationString( table_name, json )
-		
-				const migration = await db.get_async( "SELECT * FROM migrations WHERE title = ?", table_name )
-				if ( migration == undefined )
-				{
-					await db.run_async( "INSERT INTO migrations ( title, up, down ) VALUES ( ?, ?, ? )", table_name, up, down )
-					await db.run_async( up )
-					return
-				}
-		
-				if ( migration.down != down )
-					await db.run_async( "UPDATE migrations SET down = ? WHERE title = ?", down, table_name )
-		
-				if ( migration.up != up )
-				{
-					await db.run_async( down )
-					await db.run_async( "UPDATE migrations SET up = ? WHERE = ?", up, table_name )
-					await db.run_async( up )
-				}
-			})() )
+
+	for ( const dir of dirs ) {
+		if ( !dir.isFile() ) return;
+		if ( dir.name.slice( -5 ) != ".json" ) return;
+
+		const json = JSON.parse( await fs.readFile( path.join( db_path_migrations, dir.name ), { encoding: "utf-8" } ) )
+	
+		const table_name = dir.name.slice( 0, -5 )
+
+		const up = CompileUpMigrationString( table_name, json )
+		const down = CompileDownMigrationString( table_name, json )
+	
+		const migration = await db.get_async( "SELECT * FROM migrations WHERE title = ?", table_name )
+		if ( migration == undefined )
+		{
+			await db.run_async( "INSERT INTO migrations ( title, up, down ) VALUES ( ?, ?, ? )", table_name, up, down )
+			await db.run_async( up )
+			return
 		}
-		return Promise.all( queries )
-	})()
+		else {
+			if ( migration.down != down )
+				await db.run_async( "UPDATE migrations SET down = ? WHERE title = ?", down, table_name )
+		
+			if ( migration.up != up )
+			{
+				await db.run_async( down )
+				await db.run_async( "UPDATE migrations SET up = ? WHERE title = ?", up, table_name )
+				await db.run_async( up )
+			}
+		}
+
+		await db.run_async( `INSERT INTO prompt_manifest_tables \
+			( table_name, pretty_name ) 						\
+			VALUES												\
+			( '${ table_name }', '${ json.prompt.pretty_name }' )`
+		)
+
+		for ( const field of json.fields ) {
+			db.run( `INSERT INTO prompt_manifest ( 
+				table_name, 
+				field_name, 
+				pretty_name,
+				field_type,
+				required,
+				is_unique
+				${ field.check != undefined ? ", value_check" : "" }
+			) VALUES (
+				$table_name,
+				$field_name,
+				$pretty_name,
+				$type,
+				$required,
+				$unique
+				${ field.check != undefined ? ", $check" : "" }
+			)`, {
+				$table_name: table_name,
+				$field_name: field.name,
+				$pretty_name: json.prompt.fields[ field.name ].pretty_name,
+				$type: SQLTypeToPromptType( field, json.prompt.fields[ field.name ] ),
+				$required: field.required != undefined && field.required ? 1 : 0,
+				$unique: field.unique != undefined && field.unique ? 1 : 0,
+				$check: field.check
+			} )
+
+			if ( field.min != undefined || field.max != undefined )
+				db.run( `INSERT INTO prompt_manifest_number (
+					table_name,
+					field_name
+					${ field.min != undefined ? ", min" : "" }
+					${ field.max != undefined ? ", max" : "" }
+				) VALUES (
+					$table_name,
+					$field_name
+					${ field.min != undefined ? ", $min" : "" }
+					${ field.max != undefined ? ", $max" : "" }
+				)`, {
+					$table_name: table_name,
+					$field_name: field.name,
+					$min: field.min,
+					$max: field.max
+				})
+						
+			if ( field.reference != undefined )
+				db.run( `INSERT INTO prompt_manifest_ref (
+					table_name,
+					field_name,
+					reference_table_name,
+					reference_column_name
+				) VALUES (
+					$table_name,
+					$field_name,
+					$reference_table_name,
+					$reference_table_column
+				)`, {
+					$table_name: table_name,
+					$field_name: field.name,
+					$reference_table_name: field.reference.table,
+					$reference_table_column: field.reference.column
+				})
+		}
+	}
 
 	db.close()
 	return Promise.resolve()
 }
 
+async function FetchDatabaseSchema() {
+	const db = new sqlite3.Database( db_path_file )
+	if ( !db )
+		throw "Unable to open the database"
+	
+	let schema = {}
+
+	const tables = await db.all_async( "SELECT * FROM prompt_manifest_tables" )
+
+	for ( const table of tables ) {
+		schema[ table.table_name ] = {}
+		const table_schema = schema[ table.table_name ]
+		table_schema.table_name = table.table_name
+		table_schema.pretty_name = table.pretty_name
+
+		const fields = await db.all_async( "SELECT * FROM prompt_manifest WHERE table_name = ?", table.table_name )
+
+		// console.log( `Table's field data: ${ JSON.stringify( fields ) }` )
+
+		if ( fields == undefined ) continue
+
+		table_schema.fields = []
+
+		for ( const field of fields ) {
+			const field_number = await db.get_async( "SELECT 		\
+				min, 												\
+				max 												\
+				FROM prompt_manifest_number							\
+				WHERE table_name = ? AND field_name = ?", table.table_name, field.field_name 
+			)
+
+			const field_ref = await db.get_async( "SELECT 		\
+				reference_table_name, 							\
+				reference_column_name 							\
+				FROM prompt_manifest_ref						\
+				WHERE table_name = ? AND field_name = ?", table.table_name, field.field_name
+			)
+
+			let field_data = { ...field, ...field_number }
+
+			if ( field_ref != undefined ) {
+				field_data.options = await db.all_async( `SELECT 
+					${ field_ref.reference_column_name } FROM 
+					${ field_ref.reference_table_name }`
+				)
+			}
+
+			table_schema.fields.push( field_data )
+		}
+	}
+
+	db.close()
+	return schema
+}
+
 async function DumpDatabase()
 {
 	const db = new sqlite3.Database( db_path_file )
-	const tables = await dbAll( db, "SELECT * FROM sqlite_master WHERE type = 'table'" )
-	var data = { sqlite_master: tables }
-	for ( const table of tables ) {
-		data[ table.name ] = []
-		const table_rows = await dbAll( db, `SELECT * FROM ${ table.name }` )
-		for ( const row of table_rows ) {
-			data[ table.name ].push( row )
-		}
-	}
+
+
+
 	db.close()
 	return data
 }
+
+ipcMain.handle( "fetch_schema", FetchDatabaseSchema )
 
 // Scheme must be registered before the app is ready
 protocol.registerSchemesAsPrivileged([
