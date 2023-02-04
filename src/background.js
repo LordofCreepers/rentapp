@@ -1,6 +1,6 @@
 'use strict'
 
-import { app, protocol, BrowserWindow, ipcMain } from 'electron'
+import { app, protocol, BrowserWindow, ipcMain, dialog } from 'electron'
 import { createProtocol } from 'vue-cli-plugin-electron-builder/lib'
 import installExtension, { VUEJS3_DEVTOOLS } from 'electron-devtools-installer'
 import fs from 'fs/promises'
@@ -287,7 +287,7 @@ async function InitializeDatabase()
 				$required: field.required != undefined && field.required ? 1 : 0,
 				$unique: field.unique != undefined && field.unique ? 1 : 0,
 				$check: field.check
-			} )
+			})
 
 			if ( field.min != undefined || field.max != undefined )
 				db.run( `INSERT INTO prompt_manifest_number (
@@ -372,10 +372,15 @@ async function FetchDatabaseSchema() {
 			let field_data = { ...field, ...field_number }
 
 			if ( field_ref != undefined ) {
-				field_data.options = await db.all_async( `SELECT 
+				const options_table = await db.all_async( `SELECT 
 					${ field_ref.reference_column_name } FROM 
 					${ field_ref.reference_table_name }`
 				)
+
+				field_data.options = []
+
+				for ( const option of options_table )
+					field_data.options.push( option.name )
 			}
 
 			table_schema.fields.push( field_data )
@@ -386,31 +391,234 @@ async function FetchDatabaseSchema() {
 	return schema
 }
 
-async function DumpDatabase()
-{
+async function ReadDatabase( channel, table, fields, database = null ) {
+	const is_valid = database != null
+
+	const db = ( database != null ) ? database : new sqlite3.Database( db_path_file )
+
+	let query_string = `SELECT * FROM ${ table }`
+
+	if ( fields != undefined && Object.keys( fields ).length > 0 ) {
+		query_string += " WHERE"
+
+		for ( const field_name in fields ) {
+			const field_value = fields[ field_name ];
+
+			query_string += ` ${ field_name } = '${ field_value }' AND`
+		}
+
+		query_string = query_string.slice( 0, -4 )
+	}
+
+	if ( isDevelopment )
+		console.log( `Running query: ${ query_string }` )
+
+	let rows
+	try {
+		rows = await db.all_async( query_string )
+	} catch( err ) {
+		return {
+			status: "err",
+			message: err
+		}
+	}
+	
+	if ( !is_valid )
+		db.close()
+
+	return {
+		status: "ok",
+		message: `Успешно извлечено ${ rows.length } записей`,
+		data: rows
+	}
+}
+
+async function InsertIntoDatabase( channel, table, fields ) {
 	const db = new sqlite3.Database( db_path_file )
 
+	let query_string = `INSERT INTO ${ table } (`
+	let data_string = `) VALUES (`
 
+	if ( fields != undefined && Object.keys( fields ).length > 0 ) {
+		for ( const field_name in fields ) {
+			const field_value = fields[ field_name ];
+
+			query_string += field_name + ", "
+			data_string += `'${ field_value }', `
+		}
+
+		query_string = query_string.slice( 0, -2 )
+		data_string = data_string.slice( 0, -2 )
+	}
+
+	query_string += data_string + ")"
+
+	if ( isDevelopment )
+		console.log( `Running query: ${ query_string }` )
+
+	try {
+		await db.run_async( query_string )
+	} catch( err ) {
+		return {
+			status: "err",
+			message: err
+		}
+	}
+
+	const rows = ( await ReadDatabase( channel, table, fields, db ) ).data
 
 	db.close()
-	return data
+	return {
+		status: "ok",
+		message: `Успешно создано ${ rows.length } записей`,
+		data: rows
+	}
+}
+
+async function UpdateDatabase( channel, table, target_fields, new_fields ) {
+	const db = new sqlite3.Database( db_path_file )
+
+	let query_string = `UPDATE ${ table } SET `
+	let new_data_string = ``
+	let target_string = ``
+
+	if ( new_fields != undefined && Object.keys( new_fields ).length > 0 ) {
+		for ( const field_name in new_fields ) {
+			const field_value = new_fields[ field_name ];
+
+			new_data_string += `${ field_name } = '${ field_value }', `
+		}
+
+		new_data_string = new_data_string.slice( 0, -2 )
+	}
+
+	if ( target_fields != undefined && Object.keys( target_fields ).length > 0 ) {
+		target_string = " WHERE "
+
+		for ( const field_name in target_fields ) {
+			const field_value = target_fields[ field_name ];
+
+			target_string += `${ field_name } = '${ field_value }' AND `
+		}
+
+		target_string = target_string.slice( 0, -5 )
+	}
+
+	query_string += new_data_string + target_string
+
+	if ( isDevelopment )
+		console.log( `Running query: ${ query_string }` )
+
+	try {
+		await db.run_async( query_string )
+	} catch( err ) {
+		return {
+			status: "err",
+			message: err
+		}
+	}
+
+	const rows = ( await ReadDatabase( channel, table, target_fields, db ) ).data
+
+	db.close()
+	return {
+		status: "ok",
+		message: `Успешно обновлено ${ rows.length } записей`,
+		data: rows
+	}
+}
+
+async function DeleteFromDatabase( channel, table, fields ) {
+	const db = new sqlite3.Database( db_path_file )
+
+	let query_string = `DELETE FROM ${ table }`
+
+	if ( fields != undefined && Object.keys( fields ).length > 0 ) {
+		query_string += " WHERE"
+
+		for ( const field_name in fields ) {
+			const field_value = fields[ field_name ];
+
+			query_string += ` ${ field_name } = '${ field_value }' AND`
+		}
+
+		query_string = query_string.slice( 0, -4 )
+	}
+
+	if ( isDevelopment )
+		console.log( `Running query: ${ query_string }` )
+
+	const rows = ( await ReadDatabase( channel, table, fields, db ) ).data
+
+	try {
+		await db.run_async( query_string )
+	} catch( err ) {
+		return {
+			status: "err",
+			message: err
+		}
+	}
+
+	db.close()
+	return {
+		status: "ok",
+		message: `Успешно удалено ${ rows.length } записей`,
+		data: rows
+	}
+}
+
+async function QueryDatabase( channel, string ) {
+	const db = new sqlite3.Database( db_path_file )
+
+	await db.run_async( string )
+
+	db.close()
+}
+
+async function FileUploadDialog( channel, data ) {
+	const result = await dialog.showOpenDialog( { filters: data } )
+	if ( result.canceled ) return
+
+	const path = result.filePaths[ 0 ]
+
+	try {
+		await fs.stat( path )
+	} catch( err ) {
+		return {
+			status: {
+				ok: false,
+				code: window.file_result.FILE_NOT_FOUND
+			}
+		}
+	}
+
+	return {
+		status: {
+			ok: true
+		},
+		file: await fs.readFile( path ),
+		path: path
+	}
 }
 
 ipcMain.handle( "fetch_schema", FetchDatabaseSchema )
+ipcMain.handle( "read_db", ReadDatabase )
+ipcMain.handle( "insert_db", InsertIntoDatabase )
+ipcMain.handle( "update_db", UpdateDatabase )
+ipcMain.handle( "delete_db", DeleteFromDatabase )
+ipcMain.on( "query_db", QueryDatabase )
+ipcMain.handle( "file_upload_dialog", FileUploadDialog )
 
 // Scheme must be registered before the app is ready
 protocol.registerSchemesAsPrivileged([
   { scheme: 'app', privileges: { secure: true, standard: true } }
 ])
 
-ipcMain.on( "init-db", InitializeDatabase )
-ipcMain.handle( "read-db", DumpDatabase )
-
 async function createMainWindow() {
   // Create the browser window.
   const win = new BrowserWindow({
-    width: 1600,
-    height: 900,
+    width: 800,
+    height: 600,
     webPreferences: {
       
       // Use pluginOptions.nodeIntegration, leave this alone
@@ -433,22 +641,6 @@ async function createMainWindow() {
     win.loadURL('app://./index.html')
   }
 }
-
-function createPrintWindow() {
-	const win = new BrowserWindow({
-		width: 640,
-		height: 360,
-		webPreferences: {
-			nodeIntegration: process.env.ELECTRON_NODE_INTEGRATION,
-			contextIsolation: !process.env.ELECTRON_NODE_INTEGRATION
-		}
-	})
-
-	createProtocol( 'app' )
-	win.loadURL( 'app//./print.html' )
-}
-
-ipcMain.on( "open_win", createPrintWindow )
 
 // Quit when all windows are closed.
 app.on('window-all-closed', () => {

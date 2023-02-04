@@ -20,25 +20,3 @@ export default {
 }
 
 </script>
-
-<style>
-	.lr-log-record {
-		text-align: left;
-	}
-
-	.lr-datetime {
-		font: 12px Prompt-Medium;
-		margin-top: 1%;
-		margin-bottom: 0%;
-		margin-left: 0.5%;
-	}
-
-	.lr-container {
-		margin-left: 1%;
-		margin-right: 1%;
-		margin-bottom: 0%;
-		border-top: 1px solid white;
-		padding: 1%;
-		font: 16px Prompt-Medium;
-	}
-</style>

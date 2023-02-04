@@ -39,6 +39,7 @@ export default {
 			this.$emit( "change", value )
 		},
 		setValue( value ) {
+			console.log( value )
 			if ( this.$refs.date == null ) return;
 			if ( value == this.value ) return;
 			let date = new Date( value ).valueOf()
@@ -46,7 +47,8 @@ export default {
 			this.value = date
 			this.$refs.date.setAttribute( "valueAsNumber", date )
 		}
-	}
+	},
+	emits: [ "change" ]
 }
 
 </script>
