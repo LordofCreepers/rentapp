@@ -1,12 +1,17 @@
 <template>
 	<div :class="[ 'tf-table-filter', enabled ? 'active' : 'inactive' ]">
 		<Checkbox 
-			v-show="!force_enable && !force_disable"
 			:default_value="enabled"
-			:class="[ 'tf-checkbox-enable', enabled ? 'active' : 'inactive' ]"
-			@change="value => toggle( value )" 
+			:class="[
+				'tf-checkbox-enable',
+				enabled ? 'active' : 'inactive',
+				force_enable || force_disable ? 'disabled' : ''
+			]"
+			@change="value => toggle( value )"
+			:force_enabled="this.force_enabled"
+			:force_disabled="this.force_disabled"
 		></Checkbox>
-		<h6 class="tf-id">{{ filter_name }} {{ enabled ? "" : "(Неактивен)" }}</h6>
+		<h6 class="tf-id">{{ filter_title }} {{ enabled ? "" : "(Неактивен)" }}</h6>
 		<div class="tf-value-container">
 			<Checkbox v-if="type === 'bool'" 
 				class="tf-value tf-checkbox"
@@ -14,27 +19,42 @@
 			></Checkbox>
 			<Textbox v-else-if="type === 'string'"
 				class="tf-value tf-textfield"
-				@change="value => this.value = value"
+				@change="value => changed( value )"
 			></Textbox>
 			<Numberbox v-else-if="type === 'number'" 
 				class="tf-value tf-textfield tf-number"
 				:min="( filter_data.min != undefined ) ? filter_data.min : 0"
 				:max="( filter_data.max != undefined ) ? filter_data.max : 1"
-				@change="value => this.value = value" 
+				@change="value => changed( value )" 
 			></Numberbox>
+			<!--<div v-else-if="( type === 'number' && is_target ) && false">
+				<Numberbox 
+					class="tf-value tf-textfield tf-number"
+					:min="( filter_data.min != undefined ) ? filter_data.min : 0"
+					:max="( filter_data.max != undefined ) ? filter_data.max : 1"
+					@change="value => changed( value, 'min' )" 
+				></Numberbox>
+				<Numberbox 
+					class="tf-value tf-textfield tf-number"
+					:min="( filter_data.min != undefined ) ? filter_data.min : 0"
+					:max="( filter_data.max != undefined ) ? filter_data.max : 1"
+					@change="value => changed( value, 'max' )" 
+				></Numberbox>
+			</div> -->
 			<Date v-else-if="type === 'date'" 
 				class="tf-value tf-date" 
-				@change="value => this.value = value" 
+				@change="value => changed( value )" 
 			></Date>
 			<Dropdown v-else-if="type === 'select'" 
 				class="tf-value tf-select"
 				:options="filter_data.options"
-				@change="value => this.value = value" 
+				@change="value => changed( value )" 
 			></Dropdown>
-			<Image v-else-if="type === 'image'"
+			<File v-else-if="type === 'image'"
 				class="tf-value tf-image"
-				@change="value => this.value = value"
-			></Image>
+				:accept_types='[ "png", "jpg" ]'
+				@change="value => changed( value )"
+			></File>
 		</div>
 	</div>
 </template>
@@ -43,16 +63,20 @@
 import Checkbox from './Checkbox.vue'
 import Date from './Date.vue';
 import Dropdown from './Dropdown.vue';
-import Image from './Image.vue';
+import File from './File.vue';
 import Numberbox from './Numberbox.vue';
 import Textbox from './Textbox.vue';
 
-	export default {
+export default {
     name: "TableFilter",
     props: {
         filter_name: {
 			type: String,
 			required: true
+		},
+		filter_title: {
+			type: String,
+			default: ""
 		},
 		type: {
 			type: String,
@@ -63,7 +87,12 @@ import Textbox from './Textbox.vue';
         filter_data: {
 			type: Object,
 			default: () => { return {} }
-		}
+		},
+		method: {
+			type: String,
+			default: "GET"
+		},
+		is_target: Boolean
     },
     data() {
         return {
@@ -79,20 +108,24 @@ import Textbox from './Textbox.vue';
     methods: {
         toggle( value ) {
 			this.enabled_value = value
+			this.$emit( "toggle", this.filter_name, this.enabled )
 		},
-		changed( value ) {
+		changed( value, id = null ) {
+			if ( id == null )
+				console.log( "Stub" )
 			this.value = value
 			this.$emit( "change", this.filter_name, value )
 		}
     },
-	emits: [ "change" ],
-    components: { Checkbox, Textbox, Numberbox, Date, Dropdown, Image }
+	emits: [ "change", "toggle" ],
+    components: { Checkbox, Textbox, Numberbox, Date, Dropdown, File }
 }
 </script>
 
 <style>
 	.tf-table-filter {
 		display: flex;
+		align-items: center;
 		margin-top: 0%;
 		margin-left: 2%;
 		margin-right: 5%;
@@ -125,10 +158,11 @@ import Textbox from './Textbox.vue';
 	}
 
 	.tf-value-container {
-		width: 60%;
+		width: 100%;
 		margin: 0;
 		margin-bottom: auto;
 		margin-left: 2%;
+		padding-right: 2.5%;
 	}
 
 	.tf-textfield {
@@ -189,6 +223,27 @@ import Textbox from './Textbox.vue';
 		text-align: center;
 	}
 
+	.tf-file {
+		background-color: black;
+		border: 4px solid white;
+		border-radius: 8px;
+		width: 50%;
+		height: 80%;
+		text-align: center;
+		color: white;
+		margin: auto;
+	}
+
+	.tf-file:hover {
+		background-color: white;
+		color: black;
+	}
+
+	.tf-file:active {
+		background-color: black;
+		color: white;
+	}
+
 	.checkbox-check-mark {
 		color: #373;
 	}
@@ -209,7 +264,7 @@ import Textbox from './Textbox.vue';
 		height: 24px;
 		margin: auto;
 		margin-left: 2%;
-		margin-right: 1%;
+		margin-right: 2%;
 		border: none
 	}
 
@@ -240,12 +295,16 @@ import Textbox from './Textbox.vue';
 		background-color: red;
 	}
 
-	.tf-checkbox-enable.active:hover {
+	.tf-checkbox-enable.active:hover:not( .disabled ) {
 		background-color: #7f7;
 	}
 
-	.tf-checkbox-enable.inactive:hover {
+	.tf-checkbox-enable.inactive:hover:not( .disabled ) {
 		background-color: #f77;
+	}
+
+	.tf-checkbox-enable.disabled {
+		background: none;
 	}
 
 	.zoom-enter-from, .zoom-leave-to {

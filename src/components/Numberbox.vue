@@ -1,9 +1,15 @@
 <template>
-	<Textbox ref="textbox" :filter="( event ) => { 
-		for ( let k = 0; k < 10; k++ )
-			if ( event.key != k ) return false
-		return event.key == '.' && this.filter( event )
-	}" @change="change( value )" />
+	<Textbox ref="textbox" :filter="( event ) => {
+		let result = false
+		for ( let k = 0; k < 10; k++ ) {
+			if ( event.key == k ) {
+				result = true
+				break
+			}
+		}
+
+		return ( result || event.key == '.' ) && this.filter( event )
+	}" @change="event => changed( event.target.value )" />
 </template>
 
 <script>
@@ -27,14 +33,13 @@ export default {
 		}
 	},
 	methods: {
-		changed( event ) {
-			let value = event.target.value
+		changed( value ) {
 			if ( this.min != undefined && value < this.min )
 				value = min
 			if ( this.max != undefined && value > this.max )
 				value = max
 			this.setValue( value )
-			this.$emit( "change", value )
+			this.$emit( "change", this.value )
 		},
 		setValue( value ) {
 			if ( value == this.value ) return;

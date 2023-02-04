@@ -36,7 +36,7 @@ export default {
 		},
 		setValue( value ) {
 			this.value = value
-			this.$refs.setAttribute( "value", value )
+			this.$refs.input.setAttribute( "value", value )
 		}
 	},
 	emits: [ "change" ]

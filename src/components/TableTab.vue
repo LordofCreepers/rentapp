@@ -3,31 +3,42 @@
 		<UnfoldingContainer :title="title">
 			<div class="tc-table-content">
 				<h4 class="tc-tip">{{ tip }}</h4>
-				<div class="tom-table-operation-mode">
-					<lable class="tom-label">Операция над записью: </lable>
-					<select class="tom-select">
-						<option value="Извлечь">Извлечь</option>
-						<option value="Создать">Создать</option>
-						<option value="Обновить">Обновить</option>
-						<option value="Удалить">Удалить</option>
+				<div class="tom-table-operation-method">
+					<h6 class="tom-label">Операция над записью: </h6>
+					<select class="tom-select" @change="e => switch_method( e.target.value )">
+						<option value="GET" selected>Извлечь</option>
+						<option value="POST">Создать</option>
+						<option value="PATCH">Обновить</option>
+						<option value="DELETE">Удалить</option>
 					</select>
 				</div>
-				<TableFilter v-for="filter of filters" 
-					:key="filter.name"
-					:filter_name="filter.pretty_name"
-					:type="filter.field_type"
-					:filter_data="filter"
-					:force_enable="filter.required == 1"
-					@change="( filter, value ) => filter_changed( filter, value )"
-				></TableFilter>
-				<!-- <div class="tc-filters-controls">
-					<button @click="filters_add()" class="tc-filters-control tc-filters-add">
-						<font-awesome-icon icon="fa-solid fa-plus" />
-					</button>
-					<button @click="filters_clear()" class="tc-filters-control tc-filters-clear">
-						<font-awesome-icon icon="fa-regular fa-trash-can" />
-					</button>
-				</div> -->
+				<div class="tt-target-values">
+					<h5 v-if="method === 'PATCH'">Поля записи для обновления</h5>
+					<TableFilter v-for="filter of filters" 
+						:key="filter.field_name"
+						:filter_title="filter.pretty_name"
+						:filter_name="filter.field_name"
+						:type="filter.field_type"
+						:filter_data="filter"
+						:force_enable="filter.required == 1 && method === 'POST'"
+						:method="method"
+						:is_target="method === 'POST' || method === 'PATCH'"
+						@change="( filter, value ) => filter_changed( filter, value, false )"
+						@toggle="( filter, value ) => filter_toggled( filter, value, false )"
+					></TableFilter>
+				</div>
+				<div class="tt-new-values" v-if="method === 'PATCH'">
+					<h5>Обновлённые значения</h5>
+					<TableFilter v-for="filter of filters" 
+						:key="filter.field_name + '_new'"
+						:filter_title="filter.pretty_name"
+						:filter_name="filter.field_name"
+						:type="filter.field_type"
+						:filter_data="filter"
+						@change="( filter, value ) => filter_changed( filter, value, true )"
+						@toggle="( filter, value ) => filter_toggled( filter, value, true )"
+					></TableFilter>
+				</div>
 				<button @click="query_execute()" class="tt-button tc-execute">Выполнить</button>
 			</div>
 		</UnfoldingContainer>
@@ -44,12 +55,12 @@ export default {
     props: {
         title: {
 			type: String,
-			require: true
+			required: true
 		},
         tip: String,
         filters: {
 			type: Array,
-			require: true
+			required: true
 		}
     },
     components: {
@@ -59,19 +70,47 @@ export default {
     data() {
         return {
             open: false,
-			filters_data: {}
+			filters_data: {},
+			method: "GET"
         };
     },
+	created() {
+		/* for ( const filter of this.filters ) {
+			console.log( filter )
+		} */
+	},
     methods: {
         toggle() {
             this.open = !this.open;
-			console.log( this.filters_data )
         },
-		filter_changed( filter, value ) {
-			this.filters_data[ filter ] = value
+		switch_method( new_method ) {
+			this.method = new_method
+
+			if ( new_method !== "PATCH" )
+				this.filters_data = {}
+			else
+				this.filters_data = {
+					target: {},
+					new: {}
+				}
+		},
+		filter_changed( filter, value, is_new ) {
+			if ( this.method !== "PATCH" )
+				this.filters_data[ filter ] = value
+			else
+				this.filters_data[ is_new ? "new" : "target" ][ filter ] = value
+		},
+		filter_toggled( filter, value ) {
+			if ( !value && this.filters_data[ filter ] != undefined ) {
+				if ( this.method !== "PATCH" )
+					delete this.filters_data[ filter ]
+				else
+					delete this.filters_data[ is_new ? "new" : "target" ][ filter ]
+			}
 		},
 		query_execute() {
-			this.$emit( "query", this.title, this.filters_data )
+			console.log( this.method )
+			this.$emit( "query", this.title, this.method, this.filters_data )
 		}
     },
 	emits: [ "query" ]
@@ -121,7 +160,7 @@ export default {
 		height: 100%;
 		background-color: black;
 		color: white;
-		border-radius: 4px;
+		border-radius: 8px;
 	}
 
 	.tc-table-content {
@@ -137,10 +176,19 @@ export default {
 		background-position-x: 100%;
 	}
 
-	.tom-table-operation-mode {
+	.tt-new-values {
+		border: 1px solid black;
+		border-radius: 4px;
+		padding: 2%;
+		margin-bottom: 1%;
+	}
+
+	.tom-table-operation-method {
+		display: flex;
+		align-items: center;
 		margin-top: 0%;
 		margin-bottom: 5%;
-		height: 4vh;
+		height: 50%;
 	}
 
 	.tc-tip {

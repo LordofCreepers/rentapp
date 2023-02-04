@@ -13,16 +13,29 @@ export default {
 		default_value: {
 			type: Boolean,
 			default: false
+		},
+		force_enabled: {
+			type: Boolean,
+			default: false
+		},
+		force_disabled: {
+			type: Boolean,
+			default: false
 		}
 	},
 	data() {
 		return {
-			value: this.default_value,
+			val: this.default_value,
+		}
+	},
+	computed: {
+		value() {
+			return ( this.val || this.force_enabled ) && !this.force_disabled
 		}
 	},
 	methods: {
 		toggle() {
-			this.value = !this.value
+			this.val = !this.val
 			this.$emit( "change", this.value )
 		}
 	},

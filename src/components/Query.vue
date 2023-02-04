@@ -9,6 +9,7 @@
                 key="query"
                 filter_name="Запрос"
                 type="string"
+				:force_enable="true"
                 :filter_data="{}"
 				@change="value => this.string = value"
             >
