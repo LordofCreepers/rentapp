@@ -4,13 +4,14 @@
 		<h2>Добро пожаловать</h2>
 	</div>
 	<TableTab 
-		v-for="( data, table ) in schema" 
+		v-for="( data, table ) in schemas" 
 		:key="table"
-		:title="data.pretty_name" tip="Шаблон" 
-		:filters='data.fields'
+		:title="data.pretty_name" 
+		:tip="data.tip"
+		:filters="data.fields"
 		@query="( name, method, fields ) => query_recieve( name, method, fields )"
 	/>
-	<div v-if="Object.keys( schema ).length > 0" id="spacer"></div>
+	<div v-if="Object.keys( schemas ).length > 0" id="spacer"></div>
 	<Query></Query>
 	<Log ref="log"></Log>
 </template>
@@ -42,19 +43,19 @@ export default {
 	},
 	data() {
 		return {
-			schema: {}
+			schemas: {}
 		}
 	},
 	async created() {
-		this.schema = await window.database.fetch_schema()
+		this.schemas = await window.database.fetch_schemas()
 	},
 	methods: {
 		async query_recieve( name, method, fields ) {
 			const fields_copy = CopyObject( fields )
 
 			let tab_name = ""
-			for ( const table_name in this.schema ) {
-				const table = this.schema[ table_name ];
+			for ( const table_name in this.schemas ) {
+				const table = this.schemas[ table_name ];
 
 				if ( table.pretty_name == name ) {
 					tab_name = table_name
@@ -89,16 +90,35 @@ export default {
 				throw "Unknown error during request"
 			}
 
-			console.log( response )
 			switch ( response.status ) {
 				case "ok": {
-					let table_data = { name: name, columns: [], rows: [] }
+					if ( response.data.length == 0 ) {
+						this.$refs.log.add( { messages: [ { text: "Подходящих записей нет" } ] } )
+						break
+					}
+
+					let table_data = { 
+						name: name, 
+						columns: [], 
+						rows: [],
+						extensions: [
+							{
+								name: "Текстовый файл",
+								name_short: "Текст",
+								extensions: [ "txt" ]
+							},
+							{
+								name: "JavaScript Object Notation",
+								name_short: "JSON",
+								extensions: [ "json" ]
+							}
+						]
+					}
 
 					const header_source = response.data[ 0 ]
 					for ( const field_name in header_source ) {
-						const field = this.schema[ tab_name ].fields.filter( value => field_name === value.field_name )[ 0 ]
+						const field = this.schemas[ tab_name ].fields.filter( value => field_name === value.field_name )[ 0 ]
 
-						console.log( field )
 						table_data.columns.push( field.pretty_name )
 					}
 
@@ -114,6 +134,7 @@ export default {
 						{ text: response.message, success: true }, 
 						{ table: table_data }
 					]})
+
 					break;
 				}
 				case "err":
@@ -122,6 +143,15 @@ export default {
 				default:
 					break;
 			}
+
+			this.$refs.log.$refs.unfolding.setOpen( true )
+			setTimeout( () => {
+				window.scrollTo({
+					top: this.$refs.log.$el.getBoundingClientRect().bottom,
+					left: 0,
+					behavior: "smooth"
+				})
+			}, 0 );
 		}
 	}
 }

@@ -24,6 +24,7 @@
 	"primary_key": [ "license" ],
 	"prompt": {
 		"pretty_name": "Транспорт",
+		"tip": "Транспортные средства, находящиеся на складе предприятия или в аренде",
 		"fields": {
 			"license": {
 				"pretty_name": "Рег. знак"

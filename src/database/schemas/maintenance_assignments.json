@@ -28,6 +28,7 @@
 	"primary_key": [],
 	"prompt": {
 		"pretty_name": "Ремонтные работы",
+		"tip": "Плановые работы по ремонту транспорта",
 		"fields": {
 			"maintenee": {
 				"pretty_name": "Ответственный"

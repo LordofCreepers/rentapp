@@ -1,6 +1,7 @@
 <template>
 	<div :class="[ 'tf-table-filter', enabled ? 'active' : 'inactive' ]">
 		<Checkbox 
+			ref="enable_checkbox"
 			:default_value="enabled"
 			:class="[
 				'tf-checkbox-enable',
@@ -15,16 +16,19 @@
 		<div class="tf-value-container">
 			<Checkbox v-if="type === 'bool'" 
 				class="tf-value tf-checkbox"
+				ref="value_el"
 				@change="this.value = !!!this.value" 
 			></Checkbox>
 			<Textbox v-else-if="type === 'string'"
 				class="tf-value tf-textfield"
+				ref="value_el"
 				@change="value => changed( value )"
 			></Textbox>
 			<Numberbox v-else-if="type === 'number'" 
 				class="tf-value tf-textfield tf-number"
 				:min="( filter_data.min != undefined ) ? filter_data.min : 0"
 				:max="( filter_data.max != undefined ) ? filter_data.max : 1"
+				ref="value_el"
 				@change="value => changed( value )" 
 			></Numberbox>
 			<!--<div v-else-if="( type === 'number' && is_target ) && false">
@@ -43,16 +47,20 @@
 			</div> -->
 			<Date v-else-if="type === 'date'" 
 				class="tf-value tf-date" 
+				ref="value_el"
 				@change="value => changed( value )" 
 			></Date>
 			<Dropdown v-else-if="type === 'select'" 
 				class="tf-value tf-select"
 				:options="filter_data.options"
+				:default="filter_data.options[ 0 ]"
+				ref="value_el"
 				@change="value => changed( value )" 
 			></Dropdown>
 			<File v-else-if="type === 'image'"
 				class="tf-value tf-image"
-				:accept_types='[ "png", "jpg" ]'
+				:accept_types='[ "png" ]'
+				ref="value_el"
 				@change="value => changed( value )"
 			></File>
 		</div>
@@ -100,6 +108,9 @@ export default {
 			value: null
         };
     },
+	mounted() {
+		this.changed( this.$refs.value_el.value )
+	},
 	computed: {
 		enabled() {
 			return ( this.enabled_value || this.force_enable ) && !this.force_disable
@@ -110,9 +121,8 @@ export default {
 			this.enabled_value = value
 			this.$emit( "toggle", this.filter_name, this.enabled )
 		},
-		changed( value, id = null ) {
-			if ( id == null )
-				console.log( "Stub" )
+		changed( value ) {
+			if ( value == undefined ) return;
 			this.value = value
 			this.$emit( "change", this.filter_name, value )
 		}

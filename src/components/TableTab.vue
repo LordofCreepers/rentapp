@@ -86,13 +86,14 @@ export default {
 		switch_method( new_method ) {
 			this.method = new_method
 
-			if ( new_method !== "PATCH" )
-				this.filters_data = {}
-			else
+			if ( new_method === "PATCH" )
 				this.filters_data = {
-					target: {},
+					target: this.filters_data,
 					new: {}
 				}
+			else if ( this.filters_data.target != undefined ) {
+				this.filters_data = this.filters_data.target
+			}
 		},
 		filter_changed( filter, value, is_new ) {
 			if ( this.method !== "PATCH" )

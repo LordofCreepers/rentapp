@@ -1,5 +1,5 @@
 <template>
-	<input ref="input" type="text" @keypress="event => check( event )" @change="event => changed( event )">
+	<input ref="input" type="text" @keydown="event => check( event )" @change="event => changed( event )">
 </template>
 
 <script>

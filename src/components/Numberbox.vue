@@ -1,15 +1,5 @@
 <template>
-	<Textbox ref="textbox" :filter="( event ) => {
-		let result = false
-		for ( let k = 0; k < 10; k++ ) {
-			if ( event.key == k ) {
-				result = true
-				break
-			}
-		}
-
-		return ( result || event.key == '.' ) && this.filter( event )
-	}" @change="event => changed( event.target.value )" />
+	<Textbox ref="textbox" :filter="event => is_number( event )" @change="value => changed( value )" />
 </template>
 
 <script>
@@ -18,7 +8,7 @@ import Textbox from './Textbox.vue'
 export default {
 	name: "Numberbox",
 	components: {
-		Textbox
+		Textbox,
 	},
 	props: {
 		default_value: {
@@ -33,6 +23,24 @@ export default {
 		}
 	},
 	methods: {
+		is_number( event ) {
+			let result = false
+			for ( let k = 0; k < 10; k++ ) {
+				if ( event.key == k ) {
+					result = true
+					break
+				}
+			}
+
+			return ( result || 
+				( event.key == '.' && !event.target.value.includes( '.' ) ) || 
+				event.key == 'Backspace' || 
+				event.key == 'Home' ||
+				event.key == 'End' ||
+				event.key == 'ArrowLeft' ||
+				event.key == 'ArrowRight'
+			) && this.filter( event )
+		},
 		changed( value ) {
 			if ( this.min != undefined && value < this.min )
 				value = min

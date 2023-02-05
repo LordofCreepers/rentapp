@@ -21,6 +21,7 @@
 	"primary_key": [ "title" ],
 	"prompt": {
 		"pretty_name": "Марки двигателя",
+		"tip": "Список возможных марок двигателей",
 		"fields": {
 			"title": {
 				"pretty_name": "Название"
