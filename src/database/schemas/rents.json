@@ -16,8 +16,7 @@
 				"table": "staff",
 				"column": "staff_name"
 			},
-			"required": true,
-			"check": "staff.role='Водитель'"
+			"required": true
 		},
 		{
 			"name": "vehicle",
@@ -42,6 +41,7 @@
 	"primary_key": [],
 	"prompt": {
 		"pretty_name": "Прокат",
+		"tip": "Бронь автотранспорта",
 		"fields": {
 			"rentee": {
 				"pretty_name": "Клиент"

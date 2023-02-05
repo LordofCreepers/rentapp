@@ -1,6 +1,6 @@
 
 <template>
-	<UnfoldingContainer title="Логи" class="log-unfold">
+	<UnfoldingContainer title="Логи" class="log-unfold" ref="unfolding">
 		<div class="log">
 			<button @click="clear()" class="log-clear">Очистить</button>
 			<div class="log-container" v-if="messages.length > 0">
@@ -15,34 +15,12 @@
 						<div v-if="message.text != undefined">
 							{{ message.text }}
 						</div>
-						<div v-else-if="message.table != undefined">
-							<LogQueryTable 
-								:name="message.table.name" 
-								:columns="message.table.columns"
-								:rows="message.table.rows"
-							/>
-							<button
-								class="log-save-as"
-								v-if="message.table.canSaveAsText != undefined && message.table.canSaveAsText"
-								@click='$emit( "saveAs", "text" )'
-							>
-								<font-awesome-icon class="log-save-as save" icon="fa-solid fa-floppy-disk" /> Текст
-							</button>
-							<button 
-								class="log-save-as"
-								v-if="message.table.canSaveAsJSON != undefined && message.table.canSaveAsJSON"
-								@click='$emit( "saveAs", "json" )'
-							>
-								<font-awesome-icon class="log-save-as save" icon="fa-solid fa-floppy-disk" /> JSON
-							</button>
-							<button 
-								class="log-save-as"
-								v-if="message.table.canSaveAsXML != undefined && message.table.canSaveAsXML"
-								@click='$emit( "saveAs", "xml" )'
-							>
-								<font-awesome-icon class="log-save-as save" icon="fa-solid fa-floppy-disk" /> XML
-							</button>
-						</div>
+						<LogQueryTable v-else-if="message.table != undefined"
+							:name="message.table.name" 
+							:columns="message.table.columns"
+							:rows="message.table.rows"
+							:extensions="message.table.extensions"
+						/>
 					</div>
 				</LogRecord>
 			</div>
@@ -76,8 +54,7 @@ export default {
 			console.log( msg )
 			this.messages.push( msg )
 		}
-	},
-	emits: [ "saveAs" ]
+	}
 }
 
 </script>
@@ -95,14 +72,21 @@ export default {
 	}
 
 	.log-clear {
+		background: linear-gradient(160deg, #000 85%, rgba(44,62,80,1) 100%);
+		background-size: 1000% 100%;
 		margin-top: 1%;
 		margin-bottom: 1%;
-		background-color: black;
 		border-radius: 4px;
 		border: none;
 		color: white;
 		width: 20%;
 		height: 5vh;
+		transition-property: background;
+		transition-duration: 250ms;
+	}
+
+	.log-clear:hover {
+		background-position-x: 100%;
 	}
 
 	.log-container {
@@ -112,6 +96,7 @@ export default {
 		margin-bottom: 2.5%;
 		padding-bottom: 1%;
 		padding-top: 1%;
+		align-items: center;
 	}
 
 	.log-container.empty {
@@ -138,9 +123,39 @@ export default {
 		font: 16px Prompt-Medium;
 	}
 
-	.lg-log-query-table {
+	.lq-log-query-table {
+		width: 80%;
+		margin: auto;
 		border-collapse: collapse;
 		border-color: white;
 		font: 12px Prompt-Medium;
+	}
+
+	.lq-save-buttons {
+		display: flex;
+		justify-content: center;
+		margin-top: 0.5%;
+	}
+
+	.lq-save-as {
+		background-color: black;
+		border: 1px solid white;
+		border-radius: 4px;
+		color: white;
+	}
+
+	.lq-save-as:hover {
+		background-color: white;
+		color: black;
+	}
+
+	.lq-save-as:active {
+		background-color: black;
+		color: white;
+	}
+
+	.lq-content.column.null {
+		text-decoration: dotted;
+		color: grey;
 	}
 </style>

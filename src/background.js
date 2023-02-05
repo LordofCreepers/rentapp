@@ -6,6 +6,7 @@ import installExtension, { VUEJS3_DEVTOOLS } from 'electron-devtools-installer'
 import fs from 'fs/promises'
 import sqlite3 from 'sqlite3';
 import path from 'path'
+const asciiTable = require( 'ascii-table' )
 const isDevelopment = process.env.NODE_ENV !== 'production'
 
 if ( isDevelopment )
@@ -17,7 +18,7 @@ const db_path = path.join(
 	"../src/database"
 )
 const db_path_file = path.join( db_path, "/database.db" )
-const db_path_migrations = path.join( db_path, "/scheme/" )
+const db_path_migrations = path.join( db_path, "/schemas/" )
 
 sqlite3.Database.prototype.run_async = async function( query, ...params ) {
 	let db = this
@@ -211,6 +212,7 @@ async function InitializeDatabase()
 	await db.run_async( "CREATE TABLE IF NOT EXISTS prompt_manifest_tables (\
 		table_name TEXT NOT NULL PRIMARY KEY,								\
 		pretty_name TEXT NOT NULL,											\
+		tip TEXT,															\
 		FOREIGN KEY( table_name ) REFERENCES migrations( title )			\
 			ON DELETE CASCADE ON UPDATE CASCADE								\
 	)" )
@@ -257,9 +259,9 @@ async function InitializeDatabase()
 		}
 
 		await db.run_async( `INSERT INTO prompt_manifest_tables \
-			( table_name, pretty_name ) 						\
+			( table_name, pretty_name, tip ) 						\
 			VALUES												\
-			( '${ table_name }', '${ json.prompt.pretty_name }' )`
+			( '${ table_name }', '${ json.prompt.pretty_name }', '${ json.prompt.tip }' )`
 		)
 
 		for ( const field of json.fields ) {
@@ -331,20 +333,21 @@ async function InitializeDatabase()
 	return Promise.resolve()
 }
 
-async function FetchDatabaseSchema() {
+async function FetchDatabaseSchemas() {
 	const db = new sqlite3.Database( db_path_file )
 	if ( !db )
 		throw "Unable to open the database"
 	
-	let schema = {}
+	let schemas = {}
 
 	const tables = await db.all_async( "SELECT * FROM prompt_manifest_tables" )
 
 	for ( const table of tables ) {
-		schema[ table.table_name ] = {}
-		const table_schema = schema[ table.table_name ]
+		schemas[ table.table_name ] = {}
+		let table_schema = schemas[ table.table_name ]
 		table_schema.table_name = table.table_name
 		table_schema.pretty_name = table.pretty_name
+		table_schema.tip = table.tip
 
 		const fields = await db.all_async( "SELECT * FROM prompt_manifest WHERE table_name = ?", table.table_name )
 
@@ -380,7 +383,7 @@ async function FetchDatabaseSchema() {
 				field_data.options = []
 
 				for ( const option of options_table )
-					field_data.options.push( option.name )
+					field_data.options.push( option[ Object.keys( option )[ 0 ] ] )
 			}
 
 			table_schema.fields.push( field_data )
@@ -388,7 +391,7 @@ async function FetchDatabaseSchema() {
 	}
 
 	db.close()
-	return schema
+	return schemas
 }
 
 async function ReadDatabase( channel, table, fields, database = null ) {
@@ -518,7 +521,7 @@ async function UpdateDatabase( channel, table, target_fields, new_fields ) {
 		}
 	}
 
-	const rows = ( await ReadDatabase( channel, table, target_fields, db ) ).data
+	const rows = ( await ReadDatabase( channel, table, new_fields, db ) ).data
 
 	db.close()
 	return {
@@ -579,10 +582,10 @@ async function FileUploadDialog( channel, data ) {
 	const result = await dialog.showOpenDialog( { filters: data } )
 	if ( result.canceled ) return
 
-	const path = result.filePaths[ 0 ]
+	const file_path = result.filePaths[ 0 ]
 
 	try {
-		await fs.stat( path )
+		await fs.stat( file_path )
 	} catch( err ) {
 		return {
 			status: {
@@ -596,18 +599,89 @@ async function FileUploadDialog( channel, data ) {
 		status: {
 			ok: true
 		},
-		file: await fs.readFile( path ),
-		path: path
+		file: await fs.readFile( file_path ),
+		path: file_path
 	}
 }
 
-ipcMain.handle( "fetch_schema", FetchDatabaseSchema )
+async function FileDownloadDialog( channel, data, text ) {
+	const result = await dialog.showSaveDialog( { 
+		filters: data,
+		properties: [ "createDirectory", "showOverwriteConfirmation" ] 
+	})
+	if ( result.canceled ) return
+
+	const file_path = result.filePath
+
+	const should_delete = await ( async () => {
+		try {
+			return !( ( await fs.stat( file_path ) ).isDirectory() )
+		} catch( err ) {
+			if ( err == undefined || err.code !== "ENOENT" )
+				throw err
+			return false
+		}
+	})()
+
+	if ( should_delete )
+		await fs.unlink( file_path )
+
+	await fs.writeFile( file_path, text, { encoding: "utf-8" } )
+
+	return {
+		status: {
+			ok: true
+		}
+	}
+}
+
+function QueryResultSave( channel, format, table_name, table_columns, table_rows ) {
+	let result = ""
+
+	switch ( format.extensions[ 0 ] ) {
+		case "txt": {
+			const table = new asciiTable( table_name )
+			table.setHeading( table_columns )
+			for ( const row of table_rows ) {
+				table.addRow( row )
+			}
+
+			result = table.toString()
+			break;
+		}
+		case "json": {
+			result = { Таблица: table_name, Записи: [] }
+
+			for ( const row of table_rows ) {
+				let field = {}
+
+				for ( const column_id in table_columns ) {
+					const column = table_columns[ column_id ]
+					field[ column ] = row[ column_id ]
+				}
+
+				result.Записи.push( field )
+			}
+
+			result = JSON.stringify( result, null, 4 )
+			break;
+		}
+		default:
+			break;
+	}
+
+	FileDownloadDialog( channel, [ format ], result )
+}
+
+ipcMain.handle( "fetch_schemas", FetchDatabaseSchemas )
 ipcMain.handle( "read_db", ReadDatabase )
 ipcMain.handle( "insert_db", InsertIntoDatabase )
 ipcMain.handle( "update_db", UpdateDatabase )
 ipcMain.handle( "delete_db", DeleteFromDatabase )
 ipcMain.on( "query_db", QueryDatabase )
 ipcMain.handle( "file_upload_dialog", FileUploadDialog )
+ipcMain.handle( "file_download_dialog", FileDownloadDialog )
+ipcMain.on( "file_save_result", QueryResultSave )
 
 // Scheme must be registered before the app is ready
 protocol.registerSchemesAsPrivileged([

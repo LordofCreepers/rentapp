@@ -21,7 +21,8 @@
     "ascii-table": "^0.0.9",
     "core-js": "^3.8.3",
     "sqlite3": "^5.1.4",
-    "vue": "^3.2.13"
+    "vue": "^3.2.13",
+    "xml2js": "^0.4.23"
   },
   "devDependencies": {
     "@babel/core": "^7.12.16",
@@ -49,8 +50,8 @@
     },
     "rules": {
       "vue/no-unused-vars": "warn",
-	  "no-unused-vars": "warn",
-	  "vue/no-dupe-v-else-if": "warn",
+      "no-unused-vars": "warn",
+      "vue/no-dupe-v-else-if": "warn",
       "vue/multi-word-component-names": "off",
       "no-undef": "off"
     }

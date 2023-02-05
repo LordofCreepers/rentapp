@@ -37,6 +37,10 @@ export default {
 		toggle() {
 			this.val = !this.val
 			this.$emit( "change", this.value )
+		},
+		setValue( value ) {
+			this.val = value
+			this.$emit( "change", this.value )
 		}
 	},
 	emits: [ "change" ]

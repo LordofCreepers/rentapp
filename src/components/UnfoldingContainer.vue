@@ -1,7 +1,7 @@
 <template>
     <div class="unfolding-container">
 		<button class="unfolding-button" @click="toggle()">
-			<font-awesome-icon class="undolfing-caret" icon="fa-solid fa-caret-down" />
+			<font-awesome-icon class="unfolding-caret" icon="fa-solid fa-caret-down" />
 			{{ title }}
 		</button>
 		<Transition name="unfold">
@@ -31,6 +31,9 @@ export default {
 	methods: {
 		toggle() {
 			this.open = !this.open
+		},
+		setOpen( open ) {
+			this.open = open
 		}
 	}
 }

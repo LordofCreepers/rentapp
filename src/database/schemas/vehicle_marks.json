@@ -29,6 +29,7 @@
 	"primary_key": [ "mark" ],
 	"prompt": { 
 		"pretty_name": "Марки транспорта",
+		"tip": "Список существующих марок транспорта",
 		"fields": {
 			"mark": {
 				"pretty_name": "Название"
