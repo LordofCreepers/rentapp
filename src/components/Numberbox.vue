@@ -42,7 +42,6 @@ export default {
 			) && this.filter( event )
 		},
 		changed( value ) {
-			console.log(value > this.max);
 			if ( this.min != undefined && value < this.min )
 				value = this.min
 			if ( this.max != undefined && value > this.max )
