@@ -12,11 +12,7 @@ const isDevelopment = process.env.NODE_ENV !== 'production'
 if ( isDevelopment )
 	sqlite3.verbose()
 
-const db_path = path.join(
-	isDevelopment ? __static : __dirname,
-	isDevelopment ? "" : "../../",
-	"../src/database"
-)
+const db_path = path.join( __dirname, "/../database/" )
 const db_path_file = path.join( db_path, "/database.db" )
 const db_path_migrations = path.join( db_path, "/schemas/" )
 
@@ -155,6 +151,9 @@ async function InitializeDatabase()
 		await fs.mkdir( db_path )
 	}
 
+	await fs.stat( db_path )
+	console.log("Database directory located successfully")
+
 	try {
 		await fs.stat( db_path_file )
 	} catch( err ) {
@@ -162,6 +161,9 @@ async function InitializeDatabase()
 			throw err
 		await fs.writeFile( db_path_file, "" )
 	}
+
+	await fs.stat( db_path_file )
+	console.log("Database file located successufully")
 
 	const db = new sqlite3.Database( db_path_file )
 	if ( db == undefined )
@@ -174,9 +176,11 @@ async function InitializeDatabase()
 		console.log( "Executed '" + query + "' in " + time + " .ms" )
 	}) */
 
+	console.log("Database initialization startup")
+
 	await db.run_async( "CREATE TABLE IF NOT EXISTS migrations (title TEXT PRIMARY KEY UNIQUE, up TEXT NOT NULL, down TEXT)" )
 	await db.run_async( "DROP TABLE IF EXISTS prompt_manifest" )
-	await db.run_async( "CREATE TABLE IF NOT EXISTS prompt_manifest (			\
+	await db.run_async( "CREATE TABLE prompt_manifest (							\
 		table_name TEXT NOT NULL,												\
 		field_name TEXT NOT NULL,												\
 		pretty_name TEXT NOT NULL,												\
@@ -189,48 +193,56 @@ async function InitializeDatabase()
 		PRIMARY KEY( table_name, field_name )									\
 	)" )
 	await db.run_async( "DROP TABLE IF EXISTS prompt_manifest_number" )
-	await db.run_async( "CREATE TABLE IF NOT EXISTS prompt_manifest_number (\
-		table_name TEXT NOT NULL,											\
-		field_name TEXT NOT NULL,											\
-		min FLOAT,															\
-		max FLOAT,															\
-		FOREIGN KEY( table_name ) REFERENCES migrations( title )			\
-			ON DELETE CASCADE ON UPDATE CASCADE								\
+	await db.run_async( "CREATE TABLE prompt_manifest_number (					\
+		table_name TEXT NOT NULL,												\
+		field_name TEXT NOT NULL,												\
+		min FLOAT,																\
+		max FLOAT,																\
+		FOREIGN KEY( table_name ) REFERENCES migrations( title )				\
+			ON DELETE CASCADE ON UPDATE CASCADE									\
 	)" )
 	await db.run_async( "DROP TABLE IF EXISTS prompt_manifest_ref" )
-	await db.run_async( "CREATE TABLE IF NOT EXISTS prompt_manifest_ref (	\
-		table_name TEXT NOT NULL,											\
-		field_name TEXT NOT NULL,											\
-		reference_table_name TEXT NOT NULL,									\
-		reference_column_name TEXT NOT NULL,								\
-		FOREIGN KEY( reference_table_name ) REFERENCES migrations( title )	\
-			ON DELETE CASCADE ON UPDATE CASCADE,							\
-		FOREIGN KEY( table_name ) REFERENCES migrations( title )			\
-			ON DELETE CASCADE ON UPDATE CASCADE								\
+	await db.run_async( "CREATE TABLE prompt_manifest_ref (						\
+		table_name TEXT NOT NULL,												\
+		field_name TEXT NOT NULL,												\
+		reference_table_name TEXT NOT NULL,										\
+		reference_column_name TEXT NOT NULL,									\
+		FOREIGN KEY( reference_table_name ) REFERENCES migrations( title )		\
+			ON DELETE CASCADE ON UPDATE CASCADE,								\
+		FOREIGN KEY( table_name ) REFERENCES migrations( title )				\
+			ON DELETE CASCADE ON UPDATE CASCADE									\
 	)" )
 	await db.run_async( "DROP TABLE IF EXISTS prompt_manifest_tables" )
-	await db.run_async( "CREATE TABLE IF NOT EXISTS prompt_manifest_tables (\
-		table_name TEXT NOT NULL PRIMARY KEY,								\
-		pretty_name TEXT NOT NULL,											\
-		tip TEXT,															\
-		FOREIGN KEY( table_name ) REFERENCES migrations( title )			\
-			ON DELETE CASCADE ON UPDATE CASCADE								\
+	await db.run_async( "CREATE TABLE IF NOT EXISTS prompt_manifest_tables (	\
+		table_name TEXT NOT NULL PRIMARY KEY,									\
+		pretty_name TEXT NOT NULL,												\
+		tip TEXT,																\
+		FOREIGN KEY( table_name ) REFERENCES migrations( title )				\
+			ON DELETE CASCADE ON UPDATE CASCADE									\
 	)" )
+
+	console.log("Metadata tables created")
 
 	try {
 		await fs.stat( db_path_migrations )
 	} catch( err ) {
 		if ( err.code == undefined || err.code != "ENOENT" )
 			throw err
+		console.log("No schema definitions directory found")
 		db.close()
 		return Promise.resolve()
 	}
 	
 	const dirs = await fs.readdir( db_path_migrations, { withFileTypes: true } )
 
+	console.log("Contents of schema definitions directory: ")
+
 	for ( const dir of dirs ) {
-		if ( !dir.isFile() ) return;
-		if ( dir.name.slice( -5 ) != ".json" ) return;
+		if ( !dir.isFile() ) continue;
+
+		console.log(`\t${dir.name}`)
+
+		if ( dir.name.slice( -5 ) != ".json" ) continue;
 
 		const json = JSON.parse( await fs.readFile( path.join( db_path_migrations, dir.name ), { encoding: "utf-8" } ) )
 	
@@ -244,7 +256,7 @@ async function InitializeDatabase()
 		{
 			await db.run_async( "INSERT INTO migrations ( title, up, down ) VALUES ( ?, ?, ? )", table_name, up, down )
 			await db.run_async( up )
-			return
+			continue
 		}
 		else {
 			if ( migration.down != down )
@@ -258,9 +270,9 @@ async function InitializeDatabase()
 			}
 		}
 
-		await db.run_async( `INSERT INTO prompt_manifest_tables \
+		await db.run_async( `INSERT INTO prompt_manifest_tables 	\
 			( table_name, pretty_name, tip ) 						\
-			VALUES												\
+			VALUES													\
 			( '${ table_name }', '${ json.prompt.pretty_name }', '${ json.prompt.tip }' )`
 		)
 
@@ -365,10 +377,10 @@ async function FetchDatabaseSchemas() {
 				WHERE table_name = ? AND field_name = ?", table.table_name, field.field_name 
 			)
 
-			const field_ref = await db.get_async( "SELECT 		\
-				reference_table_name, 							\
-				reference_column_name 							\
-				FROM prompt_manifest_ref						\
+			const field_ref = await db.get_async( "SELECT 			\
+				reference_table_name, 								\
+				reference_column_name 								\
+				FROM prompt_manifest_ref							\
 				WHERE table_name = ? AND field_name = ?", table.table_name, field.field_name
 			)
 
@@ -420,6 +432,9 @@ async function ReadDatabase( channel, table, fields, database = null ) {
 	try {
 		rows = await db.all_async( query_string )
 	} catch( err ) {
+		if ( !is_valid )
+			db.close()
+
 		return {
 			status: "err",
 			message: err
@@ -431,7 +446,7 @@ async function ReadDatabase( channel, table, fields, database = null ) {
 
 	return {
 		status: "ok",
-		message: `Успешно извлечено ${ rows.length } записей`,
+		message: `Успешно извлечено записей: ${ rows.length }`,
 		data: rows
 	}
 }
@@ -462,6 +477,7 @@ async function InsertIntoDatabase( channel, table, fields ) {
 	try {
 		await db.run_async( query_string )
 	} catch( err ) {
+		db.close()
 		return {
 			status: "err",
 			message: err
@@ -473,7 +489,7 @@ async function InsertIntoDatabase( channel, table, fields ) {
 	db.close()
 	return {
 		status: "ok",
-		message: `Успешно создано ${ rows.length } записей`,
+		message: `Успешно создано записей: ${ rows.length }`,
 		data: rows
 	}
 }
@@ -526,7 +542,7 @@ async function UpdateDatabase( channel, table, target_fields, new_fields ) {
 	db.close()
 	return {
 		status: "ok",
-		message: `Успешно обновлено ${ rows.length } записей`,
+		message: `Успешно обновлено записей: ${ rows.length }`,
 		data: rows
 	}
 }
@@ -565,7 +581,7 @@ async function DeleteFromDatabase( channel, table, fields ) {
 	db.close()
 	return {
 		status: "ok",
-		message: `Успешно удалено ${ rows.length } записей`,
+		message: `Успешно удалено записей: ${ rows.length }`,
 		data: rows
 	}
 }
@@ -703,7 +719,7 @@ async function createMainWindow() {
     }
   })
 
-  InitializeDatabase()
+  await InitializeDatabase()
 
   if (process.env.WEBPACK_DEV_SERVER_URL) {
     // Load the url of the dev server if in development mode
