@@ -21,8 +21,7 @@
 						:type="filter.field_type"
 						:filter_data="filter"
 						:force_enable="filter.required == 1 && method === 'POST'"
-						:method="method"
-						:is_target="method === 'POST' || method === 'PATCH'"
+						:is_select="method !== 'POST'"
 						@change="( filter, value ) => filter_changed( filter, value, false )"
 						@toggle="( filter, value ) => filter_toggled( filter, value, false )"
 					></TableFilter>
@@ -35,6 +34,7 @@
 						:filter_name="filter.field_name"
 						:type="filter.field_type"
 						:filter_data="filter"
+						:is_select="false"
 						@change="( filter, value ) => filter_changed( filter, value, true )"
 						@toggle="( filter, value ) => filter_toggled( filter, value, true )"
 					></TableFilter>
@@ -91,9 +91,10 @@ export default {
 					target: this.filters_data,
 					new: {}
 				}
-			else if ( this.filters_data.target != undefined ) {
+			else if ( this.filters_data.target != undefined )
 				this.filters_data = this.filters_data.target
-			}
+			else
+				this.filters_data = {}
 		},
 		filter_changed( filter, value, is_new ) {
 			if ( this.method !== "PATCH" )
@@ -110,7 +111,6 @@ export default {
 			}
 		},
 		query_execute() {
-			console.log( this.method )
 			this.$emit( "query", this.title, this.method, this.filters_data )
 		}
     },

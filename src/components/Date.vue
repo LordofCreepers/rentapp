@@ -1,5 +1,11 @@
 <template>
-	<input ref="date" type="date" @change="event => changed( event )">
+	<input :class="$attrs.class" v-if="!is_select" ref="date" type="date" @change="event => changed( event )">
+	<div class="date-range-container" v-else>
+		<h6 class="date-desc">Мин: </h6>
+		<input :class="$attrs.class" ref="date_min" type="date">
+		<h6 class="date-desc">Мин: </h6>
+		<input :class="$attrs.class" ref="date_max" type="date">
+	</div>
 </template>
 
 <script>
@@ -11,6 +17,7 @@ export default {
 			type: [ String, Number, Date ],
 			default: ""
 		},
+		is_select: Boolean,
 		min: [ String, Number, Date ],
 		max: [ String, Number, Date ]
 	},
@@ -19,36 +26,49 @@ export default {
 			value: this.default_value
 		}
 	},
-	created() {
-		if ( this.default_value == undefined ) return;
-		let date = new Date( this.default_value )
-		if ( this.min != undefined )
-			this.$refs.date.setAttribute( "min", min )
-		if ( this.max != undefined && new Date( this.max ) < data )
-			this.$refs.date.setAttribute( "max", max )
-		this.setValue( date )
-	},
 	methods: {
 		changed( event ) {
-			let value = event.target.valueAsNumber
-			if ( this.min != undefined && new Date( min ) > value )
-				value = min
-			if ( this.max != undefined && new Date( max ) < value )
-				value = max
-			this.setValue( value )
-			this.$emit( "change", value )
+			this.setValue( event.target.valueAsNumber )
 		},
 		setValue( value ) {
-			console.log( value )
 			if ( this.$refs.date == null ) return;
-			if ( value == this.value ) return;
-			let date = new Date( value ).valueOf()
-			if ( this.min != undefined && date < this.min )
-			this.value = date
-			this.$refs.date.setAttribute( "valueAsNumber", date )
+			if (!is_select)
+			{
+				if ( value == this.value ) return;
+				let date = new Date( value ).valueOf()
+				if ( this.min != undefined && date < this.min )
+				{
+					date = min
+					this.value = date
+				}
+				if ( this.max != undefined && date > this.max )
+				{
+					date = max
+					this.value = date
+				}
+				this.$refs.date.setAttribute( "valueAsNumber", date )
+			}
+			this.$emit( "change", this.value )
 		}
 	},
 	emits: [ "change" ]
 }
 
 </script>
+
+<style>
+	.date-range-container
+	{
+		display: flex;
+		align-items: center;
+		justify-content: space-around;
+		width: 100%;
+		height: 100%;
+	}
+
+	.date-desc
+	{
+		padding-left: 1%;
+		padding-right: 1%;
+	}
+</style>

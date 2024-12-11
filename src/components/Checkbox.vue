@@ -35,10 +35,12 @@ export default {
 	},
 	methods: {
 		toggle() {
+			if (this.force_disabled) return;
 			this.val = !this.val
 			this.$emit( "change", this.value )
 		},
 		setValue( value ) {
+			if (value == this.value) return;
 			this.val = value
 			this.$emit( "change", this.value )
 		}

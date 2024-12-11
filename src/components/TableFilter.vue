@@ -22,12 +22,15 @@
 			<Textbox v-else-if="type === 'string'"
 				class="tf-value tf-textfield"
 				ref="value_el"
+				:is_select="is_select"
+				:substring_checkbox_class="['tf-value', 'tf-checkbox']"
 				@change="value => changed( value )"
 			></Textbox>
 			<Numberbox v-else-if="type === 'number'" 
 				class="tf-value tf-textfield tf-number"
 				:min="( filter_data.min != undefined ) ? filter_data.min : 0"
 				:max="( filter_data.max != undefined ) ? filter_data.max : 1"
+				:is_select="is_select"
 				ref="value_el"
 				@change="value => changed( value )" 
 			></Numberbox>
@@ -48,6 +51,7 @@
 			<Date v-else-if="type === 'date'" 
 				class="tf-value tf-date" 
 				ref="value_el"
+				:is_select="is_select"
 				@change="value => changed( value )" 
 			></Date>
 			<Dropdown v-else-if="type === 'select'" 
@@ -96,11 +100,12 @@ export default {
 			type: Object,
 			default: () => { return {} }
 		},
-		method: {
+		/* method: {
 			type: String,
 			default: "GET"
-		},
-		is_target: Boolean
+		}, */
+		is_select: Boolean
+		// is_target: Boolean
     },
     data() {
         return {

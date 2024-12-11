@@ -1,5 +1,11 @@
 <template>
-	<Textbox ref="textbox" :filter="event => is_number( event )" @change="value => changed( value )" />
+	<Textbox v-if="!is_select" ref="textbox" :is_select="false" :filter="event => is_number( event )" @change="value => changed( value )" />
+	<div class="number-range-container" v-else>
+		<h6 class="number-desc">Мин: </h6>
+		<Textbox :class="$attrs.class" ref="textbox_min" :is_select="false" :filter="event => is_number( event )" />
+		<h6 class="number-desc">Макс: </h6>
+		<Textbox :class="$attrs.class" ref="textbox_max" :is_select="false" :filter="event => is_number( event )" />
+	</div>
 </template>
 
 <script>
@@ -20,7 +26,8 @@ export default {
 		filter: {
 			type: Function,
 			default: () => true
-		}
+		},
+		is_select: Boolean
 	},
 	methods: {
 		is_number( event ) {
@@ -64,3 +71,20 @@ export default {
 }
 
 </script>
+
+<style>
+	.number-range-container
+	{
+		display: flex;
+		align-items: center;
+		justify-content: space-around;
+		width: 100%;
+		height: 100%;
+	}
+
+	.number-desc
+	{
+		padding-left: 1%;
+		padding-right: 1%;
+	}
+</style>
