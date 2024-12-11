@@ -1,6 +1,12 @@
 {
   "name": "autorent",
   "version": "0.1.0",
+  "description": "App for renting",
+  "author": {
+	"name": "DeadJustD",
+	"email": "vip.panzarhero173z@yandex.ru",
+	"url": "https://github.com/LordofCreepers"
+  },
   "private": true,
   "scripts": {
     "start": "npm run electron:serve",
