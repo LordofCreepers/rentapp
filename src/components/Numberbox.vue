@@ -1,10 +1,10 @@
 <template>
-	<Textbox v-if="!is_select" ref="textbox" :is_select="false" :filter="event => is_number( event )" @change="value => changed( value )" />
+	<Textbox v-if="!is_select" ref="textbox" :is_select="false" :filter="is_number" @change="setValue" />
 	<div class="number-range-container" v-else>
 		<h6 class="number-desc">Мин: </h6>
-		<Textbox :class="$attrs.class" ref="textbox_min" :is_select="false" :filter="event => is_number( event )" />
+		<Textbox :class="$attrs.class" ref="textbox_min" :is_select="false" :filter="is_number" />
 		<h6 class="number-desc">Макс: </h6>
-		<Textbox :class="$attrs.class" ref="textbox_max" :is_select="false" :filter="event => is_number( event )" />
+		<Textbox :class="$attrs.class" ref="textbox_max" :is_select="false" :filter="is_number" />
 	</div>
 </template>
 
@@ -48,23 +48,21 @@ export default {
 				event.key == 'ArrowRight'
 			) && this.filter( event )
 		},
-		changed( value ) {
-			if ( this.min != undefined && value < this.min )
-				value = min
-			if ( this.max != undefined && value > this.max )
-				value = max
-			this.setValue( value )
-			this.$emit( "change", this.value )
-		},
-		setValue( value ) {
-			if ( value == this.value ) return;
+		setValue( value, ref = null ) {
+			let el = (ref == null) ? this.$refs.textbox : this.$refs['textbox_' + ref]
+			if ( value == ((ref == null) ? this.value : this.value[ref]) ) return;
 			if ( typeof Number( value ) != "number" )
 			{
 				this.setValue( 0 )
 				return
 			}
-			this.value = value
-			this.$refs.textbox.setValue( value )
+			if ( this.min != undefined && value < this.min )
+				value = min
+			if ( this.max != undefined && value > this.max )
+				value = max
+			((ref == null) ? this.value : this.value[ref]) = value
+			el.setValue( value )
+			this.$emit( "change", value )
 		}
 	},
 	emits: [ "change" ]

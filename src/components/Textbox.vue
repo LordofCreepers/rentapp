@@ -1,5 +1,5 @@
 <template>
-	<input :class="$attrs.class" ref="input" type="text" @keydown="event => check( event )" @change="event => changed_str( event )">
+	<input :class="$attrs.class" ref="input" type="text" @keydown="check" @change="changed_str">
 	<div class="substr-container" v-if="is_select">
 		<h6>Частичное совпадение: </h6>
 		<Checkbox :class="substr_checkbox_class" ref="is_substr" />

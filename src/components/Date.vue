@@ -1,10 +1,10 @@
 <template>
-	<input :class="$attrs.class" v-if="!is_select" ref="date" type="date" @change="event => changed( event )">
-	<div class="date-range-container" v-else>
+	<input v-if="!is_select" :class="$attrs.class" ref="date" type="date" @change="event => this.setValue( event.target.value)">
+	<div v-else class="date-range-container">
 		<h6 class="date-desc">Мин: </h6>
-		<input :class="$attrs.class" ref="date_min" type="date">
-		<h6 class="date-desc">Мин: </h6>
-		<input :class="$attrs.class" ref="date_max" type="date">
+		<input :class="$attrs.class" ref="date_min" type="date" @change="changed_min">
+		<h6 class="date-desc">Макс: </h6>
+		<input :class="$attrs.class" ref="date_max" type="date" @change="changed_max">
 	</div>
 </template>
 
@@ -17,37 +17,30 @@ export default {
 			type: [ String, Number, Date ],
 			default: ""
 		},
-		is_select: Boolean,
 		min: [ String, Number, Date ],
-		max: [ String, Number, Date ]
+		max: [ String, Number, Date ],
+		is_select: Boolean
 	},
 	data() {
 		return {
-			value: this.default_value
+			value: 
+				(this.is_select) ? 
+					{ min: this.default_value, max: this.default_value } :
+					this.default_value
 		}
 	},
 	methods: {
-		changed( event ) {
-			this.setValue( event.target.valueAsNumber )
-		},
-		setValue( value ) {
-			if ( this.$refs.date == null ) return;
-			if (!is_select)
-			{
-				if ( value == this.value ) return;
-				let date = new Date( value ).valueOf()
-				if ( this.min != undefined && date < this.min )
-				{
-					date = min
-					this.value = date
-				}
-				if ( this.max != undefined && date > this.max )
-				{
-					date = max
-					this.value = date
-				}
-				this.$refs.date.setAttribute( "valueAsNumber", date )
-			}
+		setValue( value, ref = null ) {
+			let el = (ref == null) ? this.$refs.date : this.$refs['date_' + ref]
+			if ( el == null ) return;
+			if ( value == ((ref == null) ? this.value : this.value[ref]) ) return;
+			let date = new Date( value ).valueOf()
+			if ( this.min != undefined && date < this.min )
+				date = min
+			if ( this.max != undefined && date > this.max )
+				date = max
+			(( ref == null ) ? this.value : this.value[ref]) = date
+			el.setAttribute( "valueAsNumber", date )
 			this.$emit( "change", this.value )
 		}
 	},
