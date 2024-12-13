@@ -412,18 +412,7 @@ async function ReadDatabase( channel, table, fields, database = null ) {
 	const db = ( database != null ) ? database : new sqlite3.Database( db_path_file )
 
 	let query_string = `SELECT * FROM ${ table }`
-
-	if ( fields != undefined && Object.keys( fields ).length > 0 ) {
-		query_string += " WHERE"
-
-		for ( const field_name in fields ) {
-			const field_value = fields[ field_name ];
-
-			query_string += ` ${ field_name } = '${ field_value }' AND`
-		}
-
-		query_string = query_string.slice( 0, -4 )
-	}
+	query_string += await ConstructQueryStringFromFields( table, fields, db )
 
 	if ( isDevelopment )
 		console.log( `Running query: ${ query_string }` )
@@ -499,7 +488,6 @@ async function UpdateDatabase( channel, table, target_fields, new_fields ) {
 
 	let query_string = `UPDATE ${ table } SET `
 	let new_data_string = ``
-	let target_string = ``
 
 	if ( new_fields != undefined && Object.keys( new_fields ).length > 0 ) {
 		for ( const field_name in new_fields ) {
@@ -511,17 +499,7 @@ async function UpdateDatabase( channel, table, target_fields, new_fields ) {
 		new_data_string = new_data_string.slice( 0, -2 )
 	}
 
-	if ( target_fields != undefined && Object.keys( target_fields ).length > 0 ) {
-		target_string = " WHERE "
-
-		for ( const field_name in target_fields ) {
-			const field_value = target_fields[ field_name ];
-
-			target_string += `${ field_name } = '${ field_value }' AND `
-		}
-
-		target_string = target_string.slice( 0, -5 )
-	}
+	let target_string = await ConstructQueryStringFromFields( table, target_fields, db )
 
 	query_string += new_data_string + target_string
 
@@ -698,6 +676,65 @@ ipcMain.on( "query_db", QueryDatabase )
 ipcMain.handle( "file_upload_dialog", FileUploadDialog )
 ipcMain.handle( "file_download_dialog", FileDownloadDialog )
 ipcMain.on( "file_save_result", QueryResultSave )
+
+async function ConstructQueryStringFromFields( table_name, fields, database = null )
+{
+	const db = (database != null) ? database : new sqlite3.Database( db_path_file )
+	const table_type_manifest = await db.all_async( 
+		`SELECT field_name, field_type FROM prompt_manifest WHERE table_name = ?`, 
+		table_name 
+	)
+	let table_types = {}
+	for ( const table_type of table_type_manifest )
+	{
+		table_types[ table_type.field_name ] = table_type.field_type
+	}
+
+	let query_string = ``
+
+	if ( fields != undefined && Object.keys( fields ).length > 0 ) {
+		query_string += " WHERE"
+
+		for ( const field_name in fields ) {
+			const field_value = fields[ field_name ];
+
+			query_string += ` ${ FilterDataToQueryString( field_name, field_value, table_type[ field_name ] ) } AND`
+		}
+
+		query_string = query_string.slice( 0, -4 )
+	}
+
+	return query_string
+}
+
+function FilterDataToQueryString( field_name, data, type )
+{
+	switch (type)
+	{
+		case 'string':
+		{
+			if (data.substring)
+				return `${ field_name } LIKE '${ data.string }'`
+			else
+				return `${ field_name } = '${ data.string }'`
+			break
+		}
+		case 'number':
+		case 'date':
+		{
+			if (typeof data == 'number')
+				return `${ field_name } = ${ data }`
+			else if (data.min == undefined)
+				return `${ field_name } < ${ data.max }`
+			else if (data.max == undefined)
+				return `${ field_name } > ${ data.min }`
+			else
+				return `${ field_name } BETWEEN ${ data.min } AND ${ data.max }`
+		}
+		default:
+			return `${ field_name } = ${ data }`
+	}
+}
 
 // Scheme must be registered before the app is ready
 protocol.registerSchemesAsPrivileged([

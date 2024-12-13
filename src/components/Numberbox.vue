@@ -1,10 +1,10 @@
 <template>
-	<Textbox v-if="!is_select" ref="textbox" :is_select="false" :filter="is_number" @change="setValue" />
+	<Textbox v-if="!is_select" ref="textbox" :is_select="false" :filter="is_number" @change="event => setValue( event.target.value )" />
 	<div class="number-range-container" v-else>
 		<h6 class="number-desc">Мин: </h6>
-		<Textbox :class="$attrs.class" ref="textbox_min" :is_select="false" :filter="is_number" />
+		<Textbox :class="$attrs.class" ref="textbox_min" :is_select="false" :filter="is_number" @change="event => setValue( event.target.value, 'min' )" />
 		<h6 class="number-desc">Макс: </h6>
-		<Textbox :class="$attrs.class" ref="textbox_max" :is_select="false" :filter="is_number" />
+		<Textbox :class="$attrs.class" ref="textbox_max" :is_select="false" :filter="is_number" @change="event => setValue( event.target.value, 'max' )" />
 	</div>
 </template>
 
@@ -60,7 +60,10 @@ export default {
 				value = min
 			if ( this.max != undefined && value > this.max )
 				value = max
-			((ref == null) ? this.value : this.value[ref]) = value
+			if (ref == null)
+				this.value = value
+			else
+				this.value[ref] = value
 			el.setValue( value )
 			this.$emit( "change", value )
 		}

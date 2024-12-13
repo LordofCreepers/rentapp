@@ -17,6 +17,8 @@
 </template>
 
 <script>
+/* eslint-disable */
+
 import Log from './components/Log.vue';
 import Query from './components/Query.vue';
 import TableTab from './components/TableTab.vue';
@@ -52,6 +54,9 @@ export default {
 	methods: {
 		async query_recieve( name, method, fields ) {
 			const fields_copy = CopyObject( fields )
+
+			console.log( fields_copy )
+			return
 
 			let tab_name = ""
 			for ( const table_name in this.schemas ) {

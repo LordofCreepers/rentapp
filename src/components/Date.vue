@@ -1,10 +1,10 @@
 <template>
-	<input v-if="!is_select" :class="$attrs.class" ref="date" type="date" @change="event => this.setValue( event.target.value)">
+	<input v-if="!is_select" :class="$attrs.class" ref="date" type="date" @change="event => setValue( event.target.value )">
 	<div v-else class="date-range-container">
 		<h6 class="date-desc">Мин: </h6>
-		<input :class="$attrs.class" ref="date_min" type="date" @change="changed_min">
+		<input :class="$attrs.class" ref="date_min" type="date" @change="event => setValue( event.target.value, 'min' )">
 		<h6 class="date-desc">Макс: </h6>
-		<input :class="$attrs.class" ref="date_max" type="date" @change="changed_max">
+		<input :class="$attrs.class" ref="date_max" type="date" @change="event => setValue( event.target.value, 'max' )">
 	</div>
 </template>
 

@@ -2,7 +2,7 @@
 	<input :class="$attrs.class" ref="input" type="text" @keydown="check" @change="changed_str">
 	<div class="substr-container" v-if="is_select">
 		<h6>Частичное совпадение: </h6>
-		<Checkbox :class="substr_checkbox_class" ref="is_substr" />
+		<Checkbox ref="is_substr" />
 	</div>
 </template>
 
@@ -67,6 +67,7 @@ export default {
 		setValue( value ) {
 			this.value = value
 			this.$refs.input.setAttribute( "value", (this.is_select) ? value.string : value )
+			console.log( this.$refs.is_substr )
 			this.$refs.is_substr.setValue( value.substring )
 		}
 	},
