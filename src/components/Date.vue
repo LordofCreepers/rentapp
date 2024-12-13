@@ -39,7 +39,10 @@ export default {
 				date = min
 			if ( this.max != undefined && date > this.max )
 				date = max
-			(( ref == null ) ? this.value : this.value[ref]) = date
+			if (ref == null)
+				this.value = date
+			else
+				this.value[ref] = data
 			el.setAttribute( "valueAsNumber", date )
 			this.$emit( "change", this.value )
 		}
