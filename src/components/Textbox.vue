@@ -2,7 +2,13 @@
 	<input :class="$attrs.class" ref="input" type="text" @keydown="check" @change="changed_str">
 	<div class="substr-container" v-if="is_select">
 		<h6>Частичное совпадение: </h6>
-		<Checkbox ref="is_substr" />
+		<Checkbox 
+			:class="substr_checkbox_class" 
+			:force_enabled="false"  
+			:force_disabled="false"
+			:default_value="this.default_substring_enabled"
+			ref="is_substr" 
+		></Checkbox>
 	</div>
 </template>
 
@@ -26,8 +32,8 @@ export default {
 			default: () => true
 		},
 		substr_checkbox_class: {
-			type: Array,
-			default: () => []
+			type: String,
+			default: ""
 		},
 		is_select: Boolean
 	},
@@ -72,7 +78,7 @@ export default {
 		}
 	},
 	emits: [ "change" ],
-	components: [ Checkbox ]
+	components: { Checkbox }
 }
 
 </script>
@@ -82,7 +88,13 @@ export default {
 	{
 		display: flex;
 		align-items: center;
-		justify-content: space-around;
+		justify-content: center;
+	}
+
+	.substr-container > *
+	{
+		margin-left: 1%;
+		margin-right: 1%;
 	}
 
 </style>
