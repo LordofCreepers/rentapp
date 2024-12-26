@@ -2,9 +2,9 @@
 	<Textbox v-if="!is_select" ref="textbox" :is_select="false" :filter="is_number" @change="event => setValue( event.target.value )" />
 	<div class="number-range-container" v-else>
 		<h6 class="number-desc">Мин: </h6>
-		<Textbox :class="$attrs.class" ref="textbox_min" :is_select="false" :filter="is_number" @change="event => setValue( event.target.value, 'min' )" />
+		<Textbox :class="$attrs.class" ref="textbox_min" :is_select="false" :filter="is_number" @change="value => setValue( value, 'min' )" />
 		<h6 class="number-desc">Макс: </h6>
-		<Textbox :class="$attrs.class" ref="textbox_max" :is_select="false" :filter="is_number" @change="event => setValue( event.target.value, 'max' )" />
+		<Textbox :class="$attrs.class" ref="textbox_max" :is_select="false" :filter="is_number" @change="value => setValue( value, 'max' )" />
 	</div>
 </template>
 
@@ -21,13 +21,27 @@ export default {
 			type: Number,
 			default: 0
 		},
-		min: Number,
-		max: Number,
+		min: {
+			type: Number,
+			default: undefined
+		},
+		max: {
+			type: Number,
+			default: undefined
+		},
 		filter: {
 			type: Function,
 			default: () => true
 		},
 		is_select: Boolean
+	},
+	data()
+	{
+		return {
+			value: (this.is_select) ? 
+				{ min: this.default_value, max: this.default_value } :
+				this.default_value
+		}
 	},
 	methods: {
 		is_number( event ) {
@@ -53,17 +67,21 @@ export default {
 			if ( value == ((ref == null) ? this.value : this.value[ref]) ) return;
 			if ( typeof Number( value ) != "number" )
 			{
-				this.setValue( 0 )
+				this.setValue( 0, ref )
 				return
 			}
 			if ( this.min != undefined && value < this.min )
-				value = min
+				value = this.min
 			if ( this.max != undefined && value > this.max )
-				value = max
+				value = this.max
 			if (ref == null)
 				this.value = value
 			else
+			{
+				if (typeof this.value == "number")
+					this.value = { min: this.default_value, max: this.default_value }
 				this.value[ref] = value
+			}
 			el.setValue( value )
 			this.$emit( "change", value )
 		}
