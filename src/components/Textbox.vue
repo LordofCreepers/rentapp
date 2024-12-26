@@ -7,6 +7,7 @@
 			:force_enabled="false"  
 			:force_disabled="false"
 			:default_value="this.default_substring_enabled"
+			@change="changed_substr_check"
 			ref="is_substr" 
 		></Checkbox>
 	</div>
@@ -64,7 +65,6 @@ export default {
 					{ string: event.target.value, substring: this.value.substring } :
 					event.target.value
 			)
-			this.$emit( "change", this.value )
 		},
 		changed_substr_check( value ) {
 			if (value == this.value.substring) return;
@@ -73,8 +73,9 @@ export default {
 		setValue( value ) {
 			this.value = value
 			this.$refs.input.setAttribute( "value", (this.is_select) ? value.string : value )
-			console.log( this.$refs.is_substr )
-			this.$refs.is_substr.setValue( value.substring )
+			if ( !this.is_select ) return
+				this.$refs.is_substr.setValue( value.substring )
+			this.$emit( "change", this.value )
 		}
 	},
 	emits: [ "change" ],
