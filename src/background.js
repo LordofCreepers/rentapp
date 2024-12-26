@@ -441,6 +441,9 @@ async function ReadDatabase( channel, table, fields, database = null ) {
 }
 
 async function InsertIntoDatabase( channel, table, fields ) {
+	console.log(table)
+	console.log(fields)
+
 	const db = new sqlite3.Database( db_path_file )
 
 	let query_string = `INSERT INTO ${ table } (`
@@ -459,6 +462,8 @@ async function InsertIntoDatabase( channel, table, fields ) {
 	}
 
 	query_string += data_string + ")"
+
+	console.log(query_string)
 
 	if ( isDevelopment )
 		console.log( `Running query: ${ query_string }` )
