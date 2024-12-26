@@ -23,7 +23,7 @@
 				class="tf-value tf-textfield"
 				ref="value_el"
 				:is_select="is_select"
-				:substring_checkbox_class="['tf-value', 'tf-checkbox']"
+				:substring_checkbox_class="['tf-checkbox active']"
 				@change="value => changed( value )"
 			></Textbox>
 			<Numberbox v-else-if="type === 'number'" 
