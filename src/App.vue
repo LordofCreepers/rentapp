@@ -55,8 +55,8 @@ export default {
 		async query_recieve( name, method, fields ) {
 			const fields_copy = CopyObject( fields )
 
-			console.log( fields_copy )
-			return
+			// console.log( fields_copy )
+			// return
 
 			let tab_name = ""
 			for ( const table_name in this.schemas ) {
