@@ -16,6 +16,7 @@
 					<h5 v-if="method === 'PATCH'">Поля записи для обновления</h5>
 					<TableFilter v-for="filter of filters" 
 						:key="filter.field_name"
+						:ref="filter.field_name"
 						:filter_title="filter.pretty_name"
 						:filter_name="filter.field_name"
 						:type="filter.field_type"
@@ -30,6 +31,7 @@
 					<h5>Обновлённые значения</h5>
 					<TableFilter v-for="filter of filters" 
 						:key="filter.field_name + '_new'"
+						:ref="filter.field_name + '_new'"
 						:filter_title="filter.pretty_name"
 						:filter_name="filter.field_name"
 						:type="filter.field_type"
@@ -111,6 +113,36 @@ export default {
 			}
 		},
 		query_execute() {
+			console.log(this.filters_data)
+
+			let final_data = {}
+			if ( this.method === 'PATCH' )
+			{
+				final_data[ "new" ] = {}
+				final_data[ "target" ] = {}
+
+				for ( const new_field_name in this.filters_data[ "new" ] )
+				{
+					if ( !this.$refs[ new_field_name ][ 0 ].enabled ) continue
+					final_data[ "new" ][ new_field_name ] = this.filters_data[ "new" ][ new_field_name ]
+				}
+				for ( const target_field_name in this.filters_data[ "target" ] )
+				{
+					if ( !this.$refs[ target_field_name ][ 0 ].enabled ) continue
+					final_data[ "target" ][ target_field_name ] = this.filters_data[ "target" ][ target_field_name ]
+				}
+			}
+			else
+			{
+				for ( const field_name in this.filters_data )
+				{
+					if ( !this.$refs[ field_name ][ 0 ].enabled ) continue
+					final_data[ field_name ] = this.filters_data[ field_name ]
+				}
+			}
+
+			console.log(final_data)
+
 			this.$emit( "query", this.title, this.method, this.filters_data )
 		}
     },
