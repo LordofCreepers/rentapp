@@ -256,7 +256,6 @@ async function InitializeDatabase()
 		{
 			await db.run_async( "INSERT INTO migrations ( title, up, down ) VALUES ( ?, ?, ? )", table_name, up, down )
 			await db.run_async( up )
-			continue
 		}
 		else {
 			if ( migration.down != down )
@@ -479,7 +478,9 @@ async function InsertIntoDatabase( channel, table, fields ) {
 		}
 	}
 
-	const rows = ( await ReadDatabase( channel, table, fields, db ) ).data
+	const res = await ReadDatabase( channel, table, fields, db );
+
+	const rows = res.data != undefined ? res.data : [];
 
 	db.close()
 	return {
@@ -521,7 +522,9 @@ async function UpdateDatabase( channel, table, target_fields, new_fields ) {
 		}
 	}
 
-	const rows = ( await ReadDatabase( channel, table, new_fields, db ) ).data
+	const res = await ReadDatabase( channel, table, new_fields, db );
+
+	const rows = res.data != undefined ? res.data : [];
 
 	db.close()
 	return {
@@ -551,7 +554,9 @@ async function DeleteFromDatabase( channel, table, fields ) {
 	if ( isDevelopment )
 		console.log( `Running query: ${ query_string }` )
 
-	const rows = ( await ReadDatabase( channel, table, fields, db ) ).data
+	const res = await ReadDatabase( channel, table, fields, db );
+
+	const rows = res.data != undefined ? res.data : [];
 
 	try {
 		await db.run_async( query_string )
