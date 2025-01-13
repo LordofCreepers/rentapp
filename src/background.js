@@ -441,6 +441,7 @@ async function ReadDatabase( channel, table, fields, database = null ) {
 }
 
 async function InsertIntoDatabase( channel, table, fields ) {
+	console.log("/// InsertIntoDatabase ///");
 	console.log(table)
 	console.log(fields)
 
@@ -684,6 +685,9 @@ ipcMain.on( "file_save_result", QueryResultSave )
 
 async function ConstructQueryStringFromFields( table_name, fields, database = null )
 {
+	console.log ( "/// ConstructQueryStringFromFields ///");
+	console.log( table_name );
+	console.log( fields );
 	const db = (database != null) ? database : new sqlite3.Database( db_path_file )
 	const table_type_manifest = await db.all_async( 
 		`SELECT field_name, field_type FROM prompt_manifest WHERE table_name = ?`, 
@@ -703,11 +707,13 @@ async function ConstructQueryStringFromFields( table_name, fields, database = nu
 		for ( const field_name in fields ) {
 			const field_value = fields[ field_name ];
 
-			query_string += ` ${ FilterDataToQueryString( field_name, field_value, table_type[ field_name ] ) } AND`
+			query_string += ` ${ FilterDataToQueryString( field_name, field_value, table_types[ field_name ] ) } AND`
 		}
 
 		query_string = query_string.slice( 0, -4 )
 	}
+
+	console.log( `Result query string: \n${query_string}` );
 
 	return query_string
 }
@@ -719,7 +725,7 @@ function FilterDataToQueryString( field_name, data, type )
 		case 'string':
 		{
 			if (data.substring)
-				return `${ field_name } LIKE '${ data.string }'`
+				return `${ field_name } LIKE '%${ data.string }%'`
 			else
 				return `${ field_name } = '${ data.string }'`
 			break

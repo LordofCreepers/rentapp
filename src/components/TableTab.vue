@@ -95,7 +95,7 @@ export default {
 				for ( const filter of this.filters )
 				{
 					let new_el = this.$refs[ filter.field_name + '_new' ][ 0 ];
-					let target_el = this.$refs[ filter.field_name + '_target' ][ 0 ];
+					let target_el = this.$refs[ filter.field_name ][ 0 ];
 					if (target_el.enabled())
 						final_data[ "target" ][ filter.field_name ] = target_el.getValue();
 					if (new_el.enabled())
@@ -113,8 +113,6 @@ export default {
 			}
 
 			console.log(final_data)
-
-			return;
 
 			this.$emit( "query", this.title, this.method, final_data );
 		}
