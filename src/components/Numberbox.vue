@@ -1,5 +1,5 @@
 <template>
-	<Textbox v-if="!is_select" ref="textbox" :is_select="false" :filter="is_number" @change="event => setValue( event.target.value )" />
+	<Textbox v-if="!is_select" ref="textbox" :is_select="false" :filter="is_number" @change="value => setValue( value )" />
 	<div class="number-range-container" v-else>
 		<h6 class="number-desc">Мин: </h6>
 		<Textbox :class="$attrs.class" ref="textbox_min" :is_select="false" :filter="is_number" @change="value => setValue( value, 'min' )" />
@@ -35,13 +35,15 @@ export default {
 		},
 		is_select: Boolean
 	},
-	data()
+	activated()
 	{
-		return {
-			value: (this.is_select) ? 
-				{ min: this.default_value, max: this.default_value } :
-				this.default_value
+		if (this.is_select)
+		{
+			this.$refs.textbox_min.setValue(this.default_value);
+			this.$refs.textbox_max.setValue(this.default_value);
 		}
+		else
+			this.$refs.textbox.setValue(this.default_value);
 	},
 	methods: {
 		is_number( event ) {
@@ -62,9 +64,17 @@ export default {
 				event.key == 'ArrowRight'
 			) && this.filter( event )
 		},
+		getValue() {
+			return (this.is_select) ?
+				{
+					min: Number(this.$refs.textbox_min.getValue()),
+					max: Number(this.$refs.textbox_max.getValue())
+				} :
+				Number(this.$refs.textbox.getValue());
+		},
 		setValue( value, ref = null ) {
 			let el = (ref == null) ? this.$refs.textbox : this.$refs['textbox_' + ref]
-			if ( value == ((ref == null) ? this.value : this.value[ref]) ) return;
+			if ( value == ((ref == null) ? this.getValue() : this.getValue()[ref]) ) return;
 			if ( typeof Number( value ) != "number" )
 			{
 				this.setValue( 0, ref )
@@ -74,16 +84,8 @@ export default {
 				value = this.min
 			if ( this.max != undefined && value > this.max )
 				value = this.max
-			if (ref == null)
-				this.value = value
-			else
-			{
-				if (typeof this.value == "number")
-					this.value = { min: this.default_value, max: this.default_value }
-				this.value[ref] = value
-			}
 			el.setValue( value )
-			this.$emit( "change", value )
+			this.$emit( "change", this.getValue() );
 		}
 	},
 	emits: [ "change" ]

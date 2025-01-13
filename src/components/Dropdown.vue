@@ -15,24 +15,21 @@ export default {
 		},
 		default: String
 	},
-	data() {
-		return {
-			value: this.default
-		}
-	},
-	mounted() {
+	activated() {
 		if ( this.value == undefined ) return;
 		for ( const option of this.$refs.select.childNodes ) {
 			if ( this.value != option.text ) continue
 			option.setAttribute( "selected", true )
 			break
 		}
-		console.log( this.options )
 	},
 	methods: {
+		getValue()
+		{
+			return this.$refs.select.options[ this.$refs.select.selectedIndex ].text;
+		},
 		changed( event ) {
-			this.value = event.target.options[ event.target.selectedIndex ].text
-			this.$emit( "change", this.value )
+			this.$emit( "change", this.getValue() );
 		}
 	},
 	emits: [ "change" ]

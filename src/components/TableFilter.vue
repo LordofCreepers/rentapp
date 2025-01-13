@@ -1,18 +1,18 @@
 <template>
-	<div :class="[ 'tf-table-filter', enabled ? 'active' : 'inactive' ]">
+	<div :class="[ 'tf-table-filter', enabled() ? 'active' : 'inactive' ]">
 		<Checkbox 
 			ref="enable_checkbox"
-			:default_value="enabled"
+			:default_value="enabled()"
 			:class="[
 				'tf-checkbox-enable',
-				enabled ? 'active' : 'inactive',
+				enabled() ? 'active' : 'inactive',
 				force_enable || force_disable ? 'disabled' : ''
 			]"
 			@change="value => toggle( value )"
 			:force_enabled="this.force_enabled"
 			:force_disabled="this.force_disabled"
 		></Checkbox>
-		<h6 class="tf-id">{{ filter_title }} {{ enabled ? "" : "(Неактивен)" }}</h6>
+		<h6 class="tf-id">{{ filter_title }} {{ enabled() ? "" : "(Неактивен)" }}</h6>
 		<div class="tf-value-container">
 			<Checkbox v-if="type === 'bool'" 
 				class="tf-value tf-checkbox"
@@ -109,27 +109,25 @@ export default {
     },
     data() {
         return {
-			enabled_value: false,
-			value: null
+			enabled_value: false
         };
     },
-	mounted() {
-		this.changed( this.$refs.value_el.value )
-	},
-	computed: {
-		enabled() {
-			return ( this.enabled_value || this.force_enable ) && !this.force_disable
-		}
-	},
     methods: {
+		enabled()
+		{
+			return ( this.enabled_value || this.force_enable ) && !this.force_disable;
+		},
+		getValue()
+		{
+			return this.$refs.value_el.getValue();
+		},
         toggle( value ) {
 			this.enabled_value = value
-			this.$emit( "toggle", this.filter_name, this.enabled )
+			this.$emit( "toggle", this.filter_name, this.enabled() )
 		},
 		changed( value ) {
 			if ( value == undefined ) return;
-			this.value = value
-			this.$emit( "change", this.filter_name, value )
+			this.$emit( "change", this.filter_name, this.getValue() )
 		}
     },
 	emits: [ "change", "toggle" ],

@@ -38,16 +38,11 @@ export default {
 		},
 		is_select: Boolean
 	},
-	data() {
-		return {
-			value: (this.is_select) ? "" : { string: "", substring: false }
-		}
-	},
-	created() {
+	activated()
+	{
+		this.$refs.input.setAttribute("value", this.default_string);
 		if (this.is_select)
-			this.value = { string: this.default_string, substring: this.default_substring_enabled }
-		else
-			this.value = this.default_string
+			this.$refs.is_substr.setValue(this.default_substring_enabled);
 	},
 	methods: {
 		check( event ) {
@@ -57,25 +52,29 @@ export default {
 		changed_str( event ) {
 			if ( 
 				(this.is_select) && 
-					this.value.string == event.target.value || 
-					this.value == event.target.value 
+					this.getValue()[ "string" ] == event.target.value || 
+					this.getValue() == event.target.value 
 			) return;
-			this.setValue( 
-				(this.is_select) ? 
-					{ string: event.target.value, substring: this.value.substring } :
-					event.target.value
-			)
+			this.$emit( "change", this.getValue() );
 		},
 		changed_substr_check( value ) {
-			if (value == this.value.substring) return;
-			this.setValue({ string: this.value.string, substring: value })
+			if (value == this.getValue()[ "substring" ]) return;
+			this.$emit( "change", this.getValue() );
+		},
+		getValue()
+		{
+			return (this.is_select) ? 
+				{ 
+					string: this.$refs.input.value, 
+					substring: this.$refs.is_substr.getValue()
+				} :
+				this.$refs.input.value;
 		},
 		setValue( value ) {
-			this.value = value
 			this.$refs.input.setAttribute( "value", (this.is_select) ? value.string : value )
-			if ( !this.is_select ) return
+			if ( this.is_select )
 				this.$refs.is_substr.setValue( value.substring )
-			this.$emit( "change", this.value )
+			this.$emit( "change", this.getValue() )
 		}
 	},
 	emits: [ "change" ],

@@ -23,8 +23,6 @@
 						:filter_data="filter"
 						:force_enable="filter.required == 1 && method === 'POST'"
 						:is_select="method !== 'POST'"
-						@change="( filter, value ) => filter_changed( filter, value, false )"
-						@toggle="( filter, value ) => filter_toggled( filter, value, false )"
 					></TableFilter>
 				</div>
 				<div class="tt-new-values" v-if="method === 'PATCH'">
@@ -37,8 +35,6 @@
 						:type="filter.field_type"
 						:filter_data="filter"
 						:is_select="false"
-						@change="( filter, value ) => filter_changed( filter, value, true )"
-						@toggle="( filter, value ) => filter_toggled( filter, value, true )"
 					></TableFilter>
 				</div>
 				<button @click="query_execute()" class="tt-button tc-execute">Выполнить</button>
@@ -48,6 +44,8 @@
 </template>
 
 <script>
+/* eslint-disable */
+
 import TableFilter from './TableFilter.vue';
 import UnfoldingContainer from './UnfoldingContainer.vue';
 
@@ -72,7 +70,6 @@ export default {
     data() {
         return {
             open: false,
-			filters_data: {},
 			method: "GET"
         };
     },
@@ -87,63 +84,39 @@ export default {
         },
 		switch_method( new_method ) {
 			this.method = new_method
-
-			if ( new_method === "PATCH" )
-				this.filters_data = {
-					target: this.filters_data,
-					new: {}
-				}
-			else if ( this.filters_data.target != undefined )
-				this.filters_data = this.filters_data.target
-			else
-				this.filters_data = {}
-		},
-		filter_changed( filter, value, is_new ) {
-			if ( this.method !== "PATCH" )
-				this.filters_data[ filter ] = value
-			else
-				this.filters_data[ is_new ? "new" : "target" ][ filter ] = value
-		},
-		filter_toggled( filter, value ) {
-			if ( !value && this.filters_data[ filter ] != undefined ) {
-				if ( this.method !== "PATCH" )
-					delete this.filters_data[ filter ]
-				else
-					delete this.filters_data[ is_new ? "new" : "target" ][ filter ]
-			}
 		},
 		query_execute() {
-			console.log(this.filters_data)
-
 			let final_data = {}
 			if ( this.method === 'PATCH' )
 			{
 				final_data[ "new" ] = {}
 				final_data[ "target" ] = {}
 
-				for ( const new_field_name in this.filters_data[ "new" ] )
+				for ( const filter of this.filters )
 				{
-					if ( !this.$refs[ new_field_name ][ 0 ].enabled ) continue
-					final_data[ "new" ][ new_field_name ] = this.filters_data[ "new" ][ new_field_name ]
-				}
-				for ( const target_field_name in this.filters_data[ "target" ] )
-				{
-					if ( !this.$refs[ target_field_name ][ 0 ].enabled ) continue
-					final_data[ "target" ][ target_field_name ] = this.filters_data[ "target" ][ target_field_name ]
+					let new_el = this.$refs[ filter.field_name + '_new' ][ 0 ];
+					let target_el = this.$refs[ filter.field_name + '_target' ][ 0 ];
+					if (target_el.enabled())
+						final_data[ "target" ][ filter.field_name ] = target_el.getValue();
+					if (new_el.enabled())
+						final_data[ "new" ][ filter.field_name ] = new_el.getValue();
 				}
 			}
 			else
 			{
-				for ( const field_name in this.filters_data )
+				for ( const filter of this.filters )
 				{
-					if ( !this.$refs[ field_name ][ 0 ].enabled ) continue
-					final_data[ field_name ] = this.filters_data[ field_name ]
+					let el = this.$refs[ filter.field_name ][ 0 ];
+					if (el.enabled())
+						final_data[ filter.field_name ] = el.getValue();
 				}
 			}
 
 			console.log(final_data)
 
-			this.$emit( "query", this.title, this.method, this.filters_data )
+			return;
+
+			this.$emit( "query", this.title, this.method, final_data );
 		}
     },
 	emits: [ "query" ]
