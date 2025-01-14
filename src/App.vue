@@ -12,7 +12,6 @@
 		@query="( name, method, fields ) => query_recieve( name, method, fields )"
 	/>
 	<div v-if="Object.keys( schemas ).length > 0" id="spacer"></div>
-	<Query></Query>
 	<Log ref="log"></Log>
 </template>
 
