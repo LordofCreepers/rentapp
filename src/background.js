@@ -593,13 +593,13 @@ async function DeleteFromDatabase( channel, table, fields ) {
 	}
 }
 
-async function QueryDatabase( channel, string ) {
+/* async function QueryDatabase( channel, string ) {
 	const db = new sqlite3.Database( db_path_file )
 
 	await db.run_async( string )
 
 	db.close()
-}
+} */
 
 async function FileUploadDialog( channel, data ) {
 	const result = await dialog.showOpenDialog( { filters: data } )
