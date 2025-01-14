@@ -225,6 +225,8 @@ async function InitializeDatabase()
 		field_name TEXT NOT NULL,												\
 		reference_table_name TEXT NOT NULL,										\
 		reference_column_name TEXT NOT NULL,									\
+		update_action TEXT NOT NULL,											\
+		delete_action TEXT NOT NULL,											\
 		FOREIGN KEY( reference_table_name ) REFERENCES migrations( title )		\
 			ON DELETE CASCADE ON UPDATE CASCADE,								\
 		FOREIGN KEY( table_name ) REFERENCES migrations( title )				\
@@ -237,7 +239,15 @@ async function InitializeDatabase()
 		tip TEXT,																\
 		FOREIGN KEY( table_name ) REFERENCES migrations( title )				\
 			ON DELETE CASCADE ON UPDATE CASCADE									\
-	)" )
+	)" );
+	await db.run_async( "DROP TABLE IF EXISTS prompt_manifest_pkeys" );
+	await db.run_async( "CREATE TABLE IF NOT EXISTS prompt_manifest_pkeys (		\
+		table_name TEXT NOT NULL,												\
+		column_name TEXT NOT NULL,												\
+		PRIMARY KEY(table_name, column_name),									\
+		FOREIGN KEY (table_name) REFERENCES migrations( title )					\
+			ON DELETE CASCADE ON UPDATE CASCADE									\
+	)" );
 
 	console.log("Metadata tables created")
 
@@ -343,19 +353,37 @@ async function InitializeDatabase()
 					table_name,
 					field_name,
 					reference_table_name,
-					reference_column_name
+					reference_column_name,
+					update_action,
+					delete_action
 				) VALUES (
 					$table_name,
 					$field_name,
 					$reference_table_name,
-					$reference_table_column
+					$reference_table_column,
+					$update_action,
+					$delete_action
 				)`, {
 					$table_name: table_name,
 					$field_name: field.name,
 					$reference_table_name: field.reference.table,
-					$reference_table_column: field.reference.column
-				})
+					$reference_table_column: field.reference.column,
+					$update_action: field.reference.on_update != undefined ? field.reference.on_update : 'restrict',
+					$delete_action: field.reference.on_delete != undefined ? field.reference.on_delete : 'restrict'
+				});
 		}
+
+		for ( const pkey of json.primary_key )
+			db.run( `INSERT INTO prompt_manifest_pkeys (
+				table_name,
+				column_name
+			) VALUES (
+				$table_name,
+				$column_name
+			)`, {
+				$table_name: table_name,
+				$column_name: pkey
+			})
 	}
 
 	db.close()
@@ -496,7 +524,22 @@ async function InsertIntoDatabase( channel, table, fields ) {
 		}
 	}
 
-	const res = await ReadDatabase( channel, table, fields, db );
+	const pkeys = db.all_async( 
+		`SELECT column_name FROM prompt_manifest_pkeys WHERE table_name = ?`, table_name
+	);
+
+	let query = "SELECT * FROM ? WHERE";
+	let query_data = [ table_name ];
+	for ( const pkey of pkeys )
+	{
+		query = " ? = ? AND";
+		query_data.push(pkey.column_name);
+		query_data.push(fields[pkey.column_name]);
+	}
+
+	query = query.slice( 0, -4 );
+
+	const res = db.all_async(query, ...query_data);
 
 	const rows = res.data != undefined ? res.data : [];
 
@@ -510,6 +553,9 @@ async function InsertIntoDatabase( channel, table, fields ) {
 
 async function UpdateDatabase( channel, table, target_fields, new_fields ) {
 	const db = new sqlite3.Database( db_path_file )
+
+	const old_res = await ReadDatabase( channel, table, target_fields, db );
+	const old_rows = old_res != undefined ? old_res : [];
 
 	let query_string = `UPDATE ${ table } SET `
 	let new_data_string = ``
@@ -540,15 +586,18 @@ async function UpdateDatabase( channel, table, target_fields, new_fields ) {
 		}
 	}
 
-	const res = await ReadDatabase( channel, table, new_fields, db );
+	const pkeys = db.all_async( 
+		"SELECT column_name FROM prompt_manifest_pkeys WHERE table_name = ?", table_name
+	);
 
-	const rows = res.data != undefined ? res.data : [];
+	const new_rows = res.data != undefined ? res.data : [];
 
 	db.close()
 	return {
 		status: "ok",
-		message: `Успешно обновлено записей: ${ rows.length }`,
-		data: rows
+		message: `Успешно обновлено записей: ${ new_rows.length }`,
+		data: new_rows,
+		old_data: old_rows
 	}
 }
 
