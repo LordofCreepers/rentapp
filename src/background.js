@@ -69,6 +69,19 @@ sqlite3.Database.prototype.each_async = async function( callback, query, ...para
 	})
 }
 
+function ResolveForeignKeyType( type, default_action )
+{
+	switch (type)
+	{
+		case 'none': return 'NO ACTION';
+		case 'restrict': return 'RESTRICT';
+		case 'cascade': return 'CASCADE';
+		case 'set_null': return 'SET NULL';
+		case 'set_default': return 'SET DEFAULT';
+		default: return default_action;
+	}
+}
+
 function CompileUpMigrationString( table_name, config ) {
 	let result = `CREATE TABLE ${ table_name.toLowerCase() } (`
 	let foreigns = []
@@ -109,7 +122,12 @@ function CompileUpMigrationString( table_name, config ) {
 		result += ` PRIMARY KEY( ${ config.primary_key.join( ", " ) } ),`
 
 	for ( const foreign of foreigns ) {
-result += ` FOREIGN KEY( ${ foreign.name.toLowerCase() } ) REFERENCES ${ foreign.reference.table.toLowerCase() }( ${ foreign.reference.column.toLowerCase() } ),`
+		result += ` FOREIGN KEY( ${ foreign.name.toLowerCase() } )`
+		result += ` REFERENCES ${ foreign.reference.table.toLowerCase() }( ${ foreign.reference.column.toLowerCase() } )`
+		
+		result += ` ON UPDATE ${ ResolveForeignKeyType(foreign.on_update, 'RESTRICT') }`;
+		result += ` ON DELETE ${ ResolveForeignKeyType(foreign.on_delete, 'RESTRICT') }`;
+		result += ',';
 	}
 
 	result = result.trim()
