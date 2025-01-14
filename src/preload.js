@@ -10,8 +10,7 @@ contextBridge.exposeInMainWorld( "database", {
 	read_db: async ( table, fields ) => await ipcRenderer.invoke( "read_db", table, fields ),
 	insert_db: async ( table, fields ) => await ipcRenderer.invoke( "insert_db", table, fields ),
 	update_db: async ( table, target_fields, new_fields ) => await ipcRenderer.invoke( "update_db", table, target_fields, new_fields ),
-	delete_db: async ( table, fields ) => await ipcRenderer.invoke( "delete_db", table, fields ),
-	query_db: ( string ) => ipcRenderer.send( "query_db", string )
+	delete_db: async ( table, fields ) => await ipcRenderer.invoke( "delete_db", table, fields )
 })
 
 contextBridge.exposeInMainWorld( "file_api", {

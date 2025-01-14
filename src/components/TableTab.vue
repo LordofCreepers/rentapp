@@ -16,27 +16,25 @@
 					<h5 v-if="method === 'PATCH'">Поля записи для обновления</h5>
 					<TableFilter v-for="filter of filters" 
 						:key="filter.field_name"
+						:ref="filter.field_name"
 						:filter_title="filter.pretty_name"
 						:filter_name="filter.field_name"
 						:type="filter.field_type"
 						:filter_data="filter"
 						:force_enable="filter.required == 1 && method === 'POST'"
-						:method="method"
-						:is_target="method === 'POST' || method === 'PATCH'"
-						@change="( filter, value ) => filter_changed( filter, value, false )"
-						@toggle="( filter, value ) => filter_toggled( filter, value, false )"
+						:is_select="method !== 'POST'"
 					></TableFilter>
 				</div>
 				<div class="tt-new-values" v-if="method === 'PATCH'">
 					<h5>Обновлённые значения</h5>
 					<TableFilter v-for="filter of filters" 
 						:key="filter.field_name + '_new'"
+						:ref="filter.field_name + '_new'"
 						:filter_title="filter.pretty_name"
 						:filter_name="filter.field_name"
 						:type="filter.field_type"
 						:filter_data="filter"
-						@change="( filter, value ) => filter_changed( filter, value, true )"
-						@toggle="( filter, value ) => filter_toggled( filter, value, true )"
+						:is_select="false"
 					></TableFilter>
 				</div>
 				<button @click="query_execute()" class="tt-button tc-execute">Выполнить</button>
@@ -46,6 +44,8 @@
 </template>
 
 <script>
+/* eslint-disable */
+
 import TableFilter from './TableFilter.vue';
 import UnfoldingContainer from './UnfoldingContainer.vue';
 
@@ -70,7 +70,6 @@ export default {
     data() {
         return {
             open: false,
-			filters_data: {},
 			method: "GET"
         };
     },
@@ -85,33 +84,37 @@ export default {
         },
 		switch_method( new_method ) {
 			this.method = new_method
-
-			if ( new_method === "PATCH" )
-				this.filters_data = {
-					target: this.filters_data,
-					new: {}
-				}
-			else if ( this.filters_data.target != undefined ) {
-				this.filters_data = this.filters_data.target
-			}
-		},
-		filter_changed( filter, value, is_new ) {
-			if ( this.method !== "PATCH" )
-				this.filters_data[ filter ] = value
-			else
-				this.filters_data[ is_new ? "new" : "target" ][ filter ] = value
-		},
-		filter_toggled( filter, value ) {
-			if ( !value && this.filters_data[ filter ] != undefined ) {
-				if ( this.method !== "PATCH" )
-					delete this.filters_data[ filter ]
-				else
-					delete this.filters_data[ is_new ? "new" : "target" ][ filter ]
-			}
 		},
 		query_execute() {
-			console.log( this.method )
-			this.$emit( "query", this.title, this.method, this.filters_data )
+			let final_data = {}
+			if ( this.method === 'PATCH' )
+			{
+				final_data[ "new" ] = {}
+				final_data[ "target" ] = {}
+
+				for ( const filter of this.filters )
+				{
+					let new_el = this.$refs[ filter.field_name + '_new' ][ 0 ];
+					let target_el = this.$refs[ filter.field_name ][ 0 ];
+					if (target_el.enabled())
+						final_data[ "target" ][ filter.field_name ] = target_el.getValue();
+					if (new_el.enabled())
+						final_data[ "new" ][ filter.field_name ] = new_el.getValue();
+				}
+			}
+			else
+			{
+				for ( const filter of this.filters )
+				{
+					let el = this.$refs[ filter.field_name ][ 0 ];
+					if (el.enabled())
+						final_data[ filter.field_name ] = el.getValue();
+				}
+			}
+
+			console.log(final_data)
+
+			this.$emit( "query", this.title, this.method, final_data );
 		}
     },
 	emits: [ "query" ]

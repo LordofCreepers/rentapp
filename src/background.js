@@ -69,6 +69,19 @@ sqlite3.Database.prototype.each_async = async function( callback, query, ...para
 	})
 }
 
+function ResolveForeignKeyType( type, default_action )
+{
+	switch (type)
+	{
+		case 'none': return 'NO ACTION';
+		case 'restrict': return 'RESTRICT';
+		case 'cascade': return 'CASCADE';
+		case 'set_null': return 'SET NULL';
+		case 'set_default': return 'SET DEFAULT';
+		default: return default_action;
+	}
+}
+
 function CompileUpMigrationString( table_name, config ) {
 	let result = `CREATE TABLE ${ table_name.toLowerCase() } (`
 	let foreigns = []
@@ -109,7 +122,12 @@ function CompileUpMigrationString( table_name, config ) {
 		result += ` PRIMARY KEY( ${ config.primary_key.join( ", " ) } ),`
 
 	for ( const foreign of foreigns ) {
-result += ` FOREIGN KEY( ${ foreign.name.toLowerCase() } ) REFERENCES ${ foreign.reference.table.toLowerCase() }( ${ foreign.reference.column.toLowerCase() } ),`
+		result += ` FOREIGN KEY( ${ foreign.name.toLowerCase() } )`
+		result += ` REFERENCES ${ foreign.reference.table.toLowerCase() }( ${ foreign.reference.column.toLowerCase() } )`
+		
+		result += ` ON UPDATE ${ ResolveForeignKeyType(foreign.on_update, 'RESTRICT') }`;
+		result += ` ON DELETE ${ ResolveForeignKeyType(foreign.on_delete, 'RESTRICT') }`;
+		result += ',';
 	}
 
 	result = result.trim()
@@ -207,6 +225,8 @@ async function InitializeDatabase()
 		field_name TEXT NOT NULL,												\
 		reference_table_name TEXT NOT NULL,										\
 		reference_column_name TEXT NOT NULL,									\
+		update_action TEXT NOT NULL,											\
+		delete_action TEXT NOT NULL,											\
 		FOREIGN KEY( reference_table_name ) REFERENCES migrations( title )		\
 			ON DELETE CASCADE ON UPDATE CASCADE,								\
 		FOREIGN KEY( table_name ) REFERENCES migrations( title )				\
@@ -219,7 +239,15 @@ async function InitializeDatabase()
 		tip TEXT,																\
 		FOREIGN KEY( table_name ) REFERENCES migrations( title )				\
 			ON DELETE CASCADE ON UPDATE CASCADE									\
-	)" )
+	)" );
+	await db.run_async( "DROP TABLE IF EXISTS prompt_manifest_pkeys" );
+	await db.run_async( "CREATE TABLE IF NOT EXISTS prompt_manifest_pkeys (		\
+		table_name TEXT NOT NULL,												\
+		column_name TEXT NOT NULL,												\
+		PRIMARY KEY(table_name, column_name),									\
+		FOREIGN KEY (table_name) REFERENCES migrations( title )					\
+			ON DELETE CASCADE ON UPDATE CASCADE									\
+	)" );
 
 	console.log("Metadata tables created")
 
@@ -256,7 +284,6 @@ async function InitializeDatabase()
 		{
 			await db.run_async( "INSERT INTO migrations ( title, up, down ) VALUES ( ?, ?, ? )", table_name, up, down )
 			await db.run_async( up )
-			continue
 		}
 		else {
 			if ( migration.down != down )
@@ -326,19 +353,37 @@ async function InitializeDatabase()
 					table_name,
 					field_name,
 					reference_table_name,
-					reference_column_name
+					reference_column_name,
+					update_action,
+					delete_action
 				) VALUES (
 					$table_name,
 					$field_name,
 					$reference_table_name,
-					$reference_table_column
+					$reference_table_column,
+					$update_action,
+					$delete_action
 				)`, {
 					$table_name: table_name,
 					$field_name: field.name,
 					$reference_table_name: field.reference.table,
-					$reference_table_column: field.reference.column
-				})
+					$reference_table_column: field.reference.column,
+					$update_action: field.reference.on_update != undefined ? field.reference.on_update : 'restrict',
+					$delete_action: field.reference.on_delete != undefined ? field.reference.on_delete : 'restrict'
+				});
 		}
+
+		for ( const pkey of json.primary_key )
+			db.run( `INSERT INTO prompt_manifest_pkeys (
+				table_name,
+				column_name
+			) VALUES (
+				$table_name,
+				$column_name
+			)`, {
+				$table_name: table_name,
+				$column_name: pkey
+			})
 	}
 
 	db.close()
@@ -412,18 +457,7 @@ async function ReadDatabase( channel, table, fields, database = null ) {
 	const db = ( database != null ) ? database : new sqlite3.Database( db_path_file )
 
 	let query_string = `SELECT * FROM ${ table }`
-
-	if ( fields != undefined && Object.keys( fields ).length > 0 ) {
-		query_string += " WHERE"
-
-		for ( const field_name in fields ) {
-			const field_value = fields[ field_name ];
-
-			query_string += ` ${ field_name } = '${ field_value }' AND`
-		}
-
-		query_string = query_string.slice( 0, -4 )
-	}
+	query_string += await ConstructQueryStringFromFields( table, fields, db )
 
 	if ( isDevelopment )
 		console.log( `Running query: ${ query_string }` )
@@ -452,6 +486,10 @@ async function ReadDatabase( channel, table, fields, database = null ) {
 }
 
 async function InsertIntoDatabase( channel, table, fields ) {
+	console.log("/// InsertIntoDatabase ///");
+	console.log(table)
+	console.log(fields)
+
 	const db = new sqlite3.Database( db_path_file )
 
 	let query_string = `INSERT INTO ${ table } (`
@@ -471,6 +509,8 @@ async function InsertIntoDatabase( channel, table, fields ) {
 
 	query_string += data_string + ")"
 
+	console.log(query_string)
+
 	if ( isDevelopment )
 		console.log( `Running query: ${ query_string }` )
 
@@ -484,7 +524,24 @@ async function InsertIntoDatabase( channel, table, fields ) {
 		}
 	}
 
-	const rows = ( await ReadDatabase( channel, table, fields, db ) ).data
+	const pkeys = db.all_async( 
+		`SELECT column_name FROM prompt_manifest_pkeys WHERE table_name = ?`, table_name
+	);
+
+	let query = "SELECT * FROM ? WHERE";
+	let query_data = [ table_name ];
+	for ( const pkey of pkeys )
+	{
+		query = " ? = ? AND";
+		query_data.push(pkey.column_name);
+		query_data.push(fields[pkey.column_name]);
+	}
+
+	query = query.slice( 0, -4 );
+
+	const res = db.all_async(query, ...query_data);
+
+	const rows = res.data != undefined ? res.data : [];
 
 	db.close()
 	return {
@@ -497,9 +554,11 @@ async function InsertIntoDatabase( channel, table, fields ) {
 async function UpdateDatabase( channel, table, target_fields, new_fields ) {
 	const db = new sqlite3.Database( db_path_file )
 
+	const old_res = await ReadDatabase( channel, table, target_fields, db );
+	const old_rows = old_res != undefined ? old_res : [];
+
 	let query_string = `UPDATE ${ table } SET `
 	let new_data_string = ``
-	let target_string = ``
 
 	if ( new_fields != undefined && Object.keys( new_fields ).length > 0 ) {
 		for ( const field_name in new_fields ) {
@@ -511,17 +570,7 @@ async function UpdateDatabase( channel, table, target_fields, new_fields ) {
 		new_data_string = new_data_string.slice( 0, -2 )
 	}
 
-	if ( target_fields != undefined && Object.keys( target_fields ).length > 0 ) {
-		target_string = " WHERE "
-
-		for ( const field_name in target_fields ) {
-			const field_value = target_fields[ field_name ];
-
-			target_string += `${ field_name } = '${ field_value }' AND `
-		}
-
-		target_string = target_string.slice( 0, -5 )
-	}
+	let target_string = await ConstructQueryStringFromFields( table, target_fields, db )
 
 	query_string += new_data_string + target_string
 
@@ -537,13 +586,18 @@ async function UpdateDatabase( channel, table, target_fields, new_fields ) {
 		}
 	}
 
-	const rows = ( await ReadDatabase( channel, table, new_fields, db ) ).data
+	const pkeys = db.all_async( 
+		"SELECT column_name FROM prompt_manifest_pkeys WHERE table_name = ?", table_name
+	);
+
+	const new_rows = res.data != undefined ? res.data : [];
 
 	db.close()
 	return {
 		status: "ok",
-		message: `Успешно обновлено записей: ${ rows.length }`,
-		data: rows
+		message: `Успешно обновлено записей: ${ new_rows.length }`,
+		data: new_rows,
+		old_data: old_rows
 	}
 }
 
@@ -567,7 +621,9 @@ async function DeleteFromDatabase( channel, table, fields ) {
 	if ( isDevelopment )
 		console.log( `Running query: ${ query_string }` )
 
-	const rows = ( await ReadDatabase( channel, table, fields, db ) ).data
+	const res = await ReadDatabase( channel, table, fields, db );
+
+	const rows = res.data != undefined ? res.data : [];
 
 	try {
 		await db.run_async( query_string )
@@ -586,13 +642,13 @@ async function DeleteFromDatabase( channel, table, fields ) {
 	}
 }
 
-async function QueryDatabase( channel, string ) {
+/* async function QueryDatabase( channel, string ) {
 	const db = new sqlite3.Database( db_path_file )
 
 	await db.run_async( string )
 
 	db.close()
-}
+} */
 
 async function FileUploadDialog( channel, data ) {
 	const result = await dialog.showOpenDialog( { filters: data } )
@@ -694,10 +750,74 @@ ipcMain.handle( "read_db", ReadDatabase )
 ipcMain.handle( "insert_db", InsertIntoDatabase )
 ipcMain.handle( "update_db", UpdateDatabase )
 ipcMain.handle( "delete_db", DeleteFromDatabase )
-ipcMain.on( "query_db", QueryDatabase )
+// ipcMain.on( "query_db", QueryDatabase )
 ipcMain.handle( "file_upload_dialog", FileUploadDialog )
 ipcMain.handle( "file_download_dialog", FileDownloadDialog )
 ipcMain.on( "file_save_result", QueryResultSave )
+
+async function ConstructQueryStringFromFields( table_name, fields, database = null )
+{
+	console.log ( "/// ConstructQueryStringFromFields ///");
+	console.log( table_name );
+	console.log( fields );
+	const db = (database != null) ? database : new sqlite3.Database( db_path_file )
+	const table_type_manifest = await db.all_async( 
+		`SELECT field_name, field_type FROM prompt_manifest WHERE table_name = ?`, 
+		table_name 
+	)
+	let table_types = {}
+	for ( const table_type of table_type_manifest )
+	{
+		table_types[ table_type.field_name ] = table_type.field_type
+	}
+
+	let query_string = ``
+
+	if ( fields != undefined && Object.keys( fields ).length > 0 ) {
+		query_string += " WHERE"
+
+		for ( const field_name in fields ) {
+			const field_value = fields[ field_name ];
+
+			query_string += ` ${ FilterDataToQueryString( field_name, field_value, table_types[ field_name ] ) } AND`
+		}
+
+		query_string = query_string.slice( 0, -4 )
+	}
+
+	console.log( `Result query string: \n${query_string}` );
+
+	return query_string
+}
+
+function FilterDataToQueryString( field_name, data, type )
+{
+	switch (type)
+	{
+		case 'string':
+		{
+			if (data.substring)
+				return `${ field_name } LIKE '%${ data.string }%'`
+			else
+				return `${ field_name } = '${ data.string }'`
+			break
+		}
+		case 'number':
+		case 'date':
+		{
+			if (typeof data == 'number')
+				return `${ field_name } = ${ data }`
+			else if (data.min == undefined)
+				return `${ field_name } < ${ data.max }`
+			else if (data.max == undefined)
+				return `${ field_name } > ${ data.min }`
+			else
+				return `${ field_name } BETWEEN ${ data.min } AND ${ data.max }`
+		}
+		default:
+			return `${ field_name } = ${ data }`
+	}
+}
 
 // Scheme must be registered before the app is ready
 protocol.registerSchemesAsPrivileged([
